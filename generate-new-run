@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+
+TOPDIR=`pwd`
+
+# a good working directory
+export WORK_DIR=$HOME/workflow-runs
+mkdir -p $WORK_DIR
+
+mkdir -p generated
+
+# generate the dax
+export PYTHONPATH=`pegasus-config --python`
+./workflow-generator.py
+
+# plan and submit the  workflow
+pegasus-plan \
+    --conf pegasus.conf \
+    --dir $WORK_DIR/runs \
+    --relative-dir `date +'%Y%m%d_%H%M%S'` \
+    --sites condorpool \
+    --staging-site cyverse \
+    --output-site cyverse \
+    --dax generated/dax.xml \
+    --cluster horizontal \
+    --force
+

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitecatalog xmlns="http://pegasus.isi.edu/schema/sitecatalog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pegasus.isi.edu/schema/sitecatalog http://pegasus.isi.edu/schema/sc-4.0.xsd" version="4.0">
+
+    <site  handle="local" arch="x86_64">
+        <directory type="shared-scratch" path="$WORK_DIR/scratch">
+            <file-server operation="all" url="file://$WORK_DIR/scratch"/>
+        </directory>
+        <directory type="local-storage" path="$WORK_DIR/outputs">
+            <file-server operation="all" url="file://$WORK_DIR/outputs"/>
+        </directory>
+        <profile namespace="env" key="PATH">$PATH</profile>
+    </site>
+
+    <!-- this is our staging site, where intermediate data will be stored -->
+    <site  handle="cyverse" arch="x86_64" os="LINUX">
+        <directory type="shared-scratch" path="/dav/iplant/home/$CYVERSE_USERNAME/staging">
+            <file-server operation="all" url="webdavs://data.cyverse.org/dav/iplant/home/$CYVERSE_USERNAME/staging"/>
+        </directory>
+        <directory type="shared-storage" path="/dav/iplant/home/$CYVERSE_USERNAME/workflow-outputs">
+            <file-server operation="all" url="webdavs://data.cyverse.org/dav/iplant/home/$CYVERSE_USERNAME/workflow-outputs"/>
+        </directory>
+    </site>
+
+    <!-- this is our execution site -->
+    <site  handle="condorpool" arch="x86_64" os="LINUX">
+        <profile namespace="pegasus" key="style" >condor</profile>
+        <profile namespace="condor" key="universe" >vanilla</profile>
+        <profile namespace="condor" key="requirements" >HAS_SINGULARITY == True &amp;&amp; HAS_avx2 == True</profile>
+        <profile namespace="condor" key="request_cpus" >2</profile>
+        <profile namespace="condor" key="request_memory" >10 GB</profile>
+        <profile namespace="condor" key="request_disk" >5 GB</profile>
+        <profile namespace="condor" key="+SingularityImage" >"/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest/"</profile>
+    </site>
+
+</sitecatalog>

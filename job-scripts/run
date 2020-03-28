@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+touch $2
+
+echo "Manaually set environmental variables"
+export PATH=$PATH:/usr/local/src/casa-feature-CAS-12325-14.el6/bin
+export PATH=$PATH:/usr/local/src/picard/picard
+export PYTHONPATH=$PYTHONPATH:/usr/local/src/picard/picard
+export MEQS_DIR=/usr/local/src/MeqSilhouette
+export MEQTREES_CATTERY_PATH=//usr/local/src/meqtrees-cattery/Cattery
+export PYTHONPATH=$PYTHONPATH:/usr/local/src/MeqSilhouette
+export PYTHONPATH=$PYTHONPATH:/usr/local/src/eht-imaging
+export PYTHONPATH=$PYTHONPATH:/usr/local/src/symba
+export PATH=$PATH:/usr/local/src/symba:$PATH
+
+# update the input.txt
+cat inp.* | sed "s/^input_fitsimage.*/input_fitsimage = $1/" >input.txt
+
+echo
+echo "Run symba"
+mkdir symba_output
+/usr/local/src/symba/symba input.txt 2>&1
+
+echo
+echo "Resulting files:"
+ls -l
+
+echo
+echo "Resulting files in symba_output:"
+ls -l symba_output
+
+# tar it up
+tar czf $2 symba_output
+

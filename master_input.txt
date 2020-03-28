@@ -1,0 +1,181 @@
+#Path to rPICARD input.
+rpicard_path = /usr/local/src/picard/input_template
+
+#Path to MeqSilhouette input.
+meqsilhouette_path = /usr/local/src/MeqSilhouette/input
+
+#Working directory where the output files will be created.
+outdirname = symba_output
+
+#Info about antennas for the synthetic observation.
+ms_antenna_table = /usr/local/src/symba/symba_input/VLBIarrays/eht.antennas
+
+#Ordered list of preferred fringe-fit reference antennas from the ms_antenna_table.
+rpicard_refants = AA, LM, SM, PV
+
+#Solint search range for fringe-fit (see rPICARD).
+fringe_solint = 0.00001;60
+
+#Mimic a real VLBI observation based on a vex file.
+obs_vex = True
+vexfile = /usr/local/src/symba/symba_input/vex_examples/EHT2017/e17e11.vex
+
+#Name of the observed source. Must be present in vexfile if a vexfile is given.
+vex_source = M87
+
+#Observed sourcemodel. Must be a square image fits file, square image .txt file (as read by
+#eht-imaging, see examples), or MeqSilhouette .txt sky model.
+#When observing a time variable source: Set path/to/folder/*.fits or path/to/folder/*.txt here
+#and put individual files in that folder according to frames of a movie with an ordering naming
+#convention of xxxxxx.fits or xxxxxx.txt with xxxxxx from 000000 to 999999.
+#For polarized fits models, use xxxxxx-{I,Q,U,V}-model.fits. For txt models, the polarization
+#information is given in the files themselves.
+input_fitsimage = /usr/local/src/symba/symba_input/fits_examples/*.fits
+
+#Flag for polarized input models.
+input_fitspol = False
+
+#Rotation angle for input model
+model_rotangle = 0.0
+
+#Field of view scaling factor for input model
+model_scale = 1.0
+
+#Duration [in seconds] of a single .fits frame for a movie of a time variable source.
+#Set it to a large number like 99999999 for a static source with a single fits file.
+frameduration = 99999999
+
+#When observing a time variable source:
+#Restart movie in a loop if the duration of the simulation is shorter than the observation.
+loop_movie = True
+
+#Perform network calibration. Stations eligible are determined automatically based on uv-distances.
+#The zero-baseline flux is taken directly from the input source model file.
+do_netcal = True
+
+#Time-averaging of final data products after calibration.
+#Set to False for no averaging, set to '5s' for example to average in 5second bins.
+#This time will also be used as the netcal solution interval. If set to False, 10s will be used
+#for the network calibration.
+time_avg = 10s
+
+#Match uv points based on comparison with real data:
+#The uv-coverage will be matched to the file specified as realdata_uvfits below.
+match_uv = True
+
+#UVFITS file of real data to compare uv coverage.
+realdata_uvfits = /usr/local/src/symba/symba_input/uvfits/simobs_e17e11cov.uvfits
+
+#Quantization efficiency factor, see Sections 8.3 and 8.4 in Thompson, Moran, Swenson 2017.
+#The default value of 0.88 is appropriate for 2-bit quantization.
+quantization_efficiency = 0.88
+
+#Frequency setup of synthetic data:
+#Bandwidth [GHz] and number of channels.
+ms_dnu = 2
+ms_nchan = 64
+
+
+
+
+#Can give a filename here, which contains flagging instructions in the CASA flagdata format.
+#These flags will be applied after the data has been generated with MeqSilhouette and before it is
+#passed to rPICARD for calibration.
+flag_instructions = None
+
+#Perform LZgauss_flux calibration in eht-imager.
+do_gausscal = False
+
+#Gain tolerance for network calibration and imaging.
+gain_tol = 0.2
+
+bandpass_enabled = False
+bandpass_txt = /usr/local/src/symba/symba_input/example.bandpass
+
+#Observing frequency in GHz when a .txt source model is specified as input_fitsimage.
+#This parameter is ignored for a fits input_fitsimage, where the frequency is read from the fits
+#header.
+skyfreq = 227
+
+#Sky coordinates [in degrees] of the observed source, when no vex file is given.
+#With a vex file, this parameter is ignored and the coordinates are taken from the file directly.
+#Relative position offsets between multiple geometric models are unaffected.
+ms_RA = 187.7059308333333
+ms_DEC = 12.3911233055555
+
+#Observation schedule parameters used when no vex file is given:
+#Start time, length [h], number of scans, gaps between scans [h].
+ms_StartTime = UTC,2017/04/01/00:00:00.00
+ms_obslength = 12
+ms_nscan = 1
+ms_scan_lag = 0
+
+#Accumulation period (data integration time or correlator dump time) in seconds.
+ms_tint = 0.5
+
+#Elevation limit in degrees. Data below this elevation will be flagged.
+elevation_limit = 10
+
+#Correct for ~30 s start time offset introduced by CASA
+ms_correctCASAoffset = True
+
+add_thermal_noise = True
+
+#Tropospheric corruption effects.
+trop_enabled = True
+trop_attenuate = True
+trop_turbulence = True
+trop_mean_delay = True
+trop_percentage_calibration_error = 100
+
+#If enabled, one random pointing offset error is used for every N_scan_repoint(see below) scans.
+#Based on the ptg_rms from ms_antenna_table multiplied by a .
+#Note that the PB_FWHM230 beam sizes in the ms_antenna_table are the 230GHz beam sizes. The beam
+#sizes used by the code will be a factor skyfreq_in_GHz/230 smaller.
+pointing_enabled = True
+
+#The ptg_rms values in the ms_antenna_table introduce variability in the amplitudes on short
+#timescales given by the coherence time. The idea is that this is due to the atmospheric seeing
+#and wind shaking the telescope. The ptg_rms values are also used to compute pointing offsets
+#for every N_scan_repoint scans if pointing is enabled, after multiplying the rms values with the
+#factor set here.
+pointing_rms2offset = 1.5
+
+#If pointing is enabled, set the cadence, in number of VLBI scans, used to adopt new pointing
+#solutions.
+Nscan_repoint = 5
+
+#Grow the pointing offsets by a set fraction for every scan until re-pointing.
+Nscan_pointing_grow = 0.1
+
+#Enable gain errors.
+uvjones_g_on = True
+
+#Enable leakage corruptions.
+uvjones_d_on = True
+
+#If dterms are included: correct for parallactic angle rotation in final dataset.
+parang_corrected = True
+
+#Seed value allowing to reproduce realizations of thermal noise, antenna pointing, and
+#atmospheric turbulence. Set to -1 to run without seed.
+predict_seed = -1
+
+#Run the full calibration pipeline (steps -rq 0,1,2,h,i,l see rPICARD).
+rpicard_fullpipeline = True
+
+#If the rpicard fullpipeline parameter above is set to False,
+#the calibration steps to be executed can be set here.
+rpicard_steps = -rq c,h,i,l
+
+#Make image with fiducial eht-imaging script.
+make_image = True
+
+#Field of view of the reconstructed image [in micro arcseconds].
+fov_image = 200
+
+#Keep auxiliary simulation data created by MeqSilhouette.
+keep_rawdata = False
+
+#Number of CPU cores to be used for rPICARD (set to 0 to use all available).
+N_cores = 2
