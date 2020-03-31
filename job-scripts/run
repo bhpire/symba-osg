@@ -1,8 +1,12 @@
 #!/bin/bash
 
+# Arguments:
+#  1 - job id
+#  2 - fits image
+
 set -e
 
-touch $2
+touch $1-symba.log $1.tar.gz
 
 echo "Manaually set environmental variables"
 export PATH=$PATH:/usr/local/src/casa-feature-CAS-12325-14.el6/bin
@@ -15,13 +19,22 @@ export PYTHONPATH=$PYTHONPATH:/usr/local/src/eht-imaging
 export PYTHONPATH=$PYTHONPATH:/usr/local/src/symba
 export PATH=$PATH:/usr/local/src/symba:$PATH
 
+# also need to unset some env vars which might interfere with casa
+unset PE_HOSTFILE
+
 # update the input.txt
-cat inp.* | sed "s/^input_fitsimage.*/input_fitsimage = $1/" >input.txt
+cp /usr/local/src/symba/master_input.txt master_input.txt
+python /usr/local/src/symba/scripts/tableIO.py read -m master_input.txt -f inp.* 2>&1
+cat master_input.txt | sed "s/^input_fitsimage.*/input_fitsimage = $2/" >input.txt
 
 echo
 echo "Run symba"
 mkdir symba_output
-/usr/local/src/symba/symba input.txt 2>&1
+RC=0
+if ! /usr/local/src/symba/symba input.txt >$1-symba-log.txt 2>&1; then
+    tail -n 100 $1-symba-log.txt
+    RC=1
+fi
 
 echo
 echo "Resulting files:"
@@ -33,4 +46,7 @@ ls -l symba_output
 
 # tar it up
 tar czf $2 symba_output
+
+exit $RC
+
 

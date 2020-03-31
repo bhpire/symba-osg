@@ -149,6 +149,11 @@ upload = Executable(name='upload', installed=False)
 upload.addPFN(PFN('file://' + base_dir + '/job-scripts/upload', 'local'))
 dax.addExecutable(upload)
 
+# common input files
+realdata = File('realdata.uvf')
+realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/iplant/home/shared/eht/SyntData/2017_coverage/e17a10lo_M87_coverage.uvf', 'cyverse'))
+dax.addFile(realdata)
+
 # wait a litte bit before starting the compue jobs - this will
 # let the Cyverse Webdav cache settle down
 cache_wait_job = Job(cache_wait)
@@ -220,10 +225,13 @@ for inmod in input_models:
 
             # Add symba job
             run_job = Job(run, id='{0:06d}'.format(counter))
+            log_file = File('{0:06d}-symba-log.txt'.format(counter))
             tar_file = File('{0:06d}.tar.gz'.format(counter))
-            run_job.addArguments(in_file, tar_file)
+            run_job.addArguments('{0:06d}'.format(counter), in_file)
             run_job.uses(inputtxt, link=Link.INPUT)
             run_job.uses(in_file, link=Link.INPUT)
+            run_job.uses(realdata, link=Link.INPUT)
+            run_job.uses(log_file, link=Link.OUTPUT)
             run_job.uses(tar_file, link=Link.OUTPUT)
             dax.addJob(run_job)
             dax.depends(parent=cache_wait_job, child=run_job)

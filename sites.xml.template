@@ -28,7 +28,7 @@
         <profile namespace="condor" key="requirements" >HAS_SINGULARITY == True &amp;&amp; HAS_avx2 == True</profile>
         <profile namespace="condor" key="request_cpus" >2</profile>
         <profile namespace="condor" key="request_memory" >10 GB</profile>
-        <profile namespace="condor" key="request_disk" >5 GB</profile>
+        <profile namespace="condor" key="request_disk" >10 GB</profile>
         <profile namespace="condor" key="+SingularityImage" >"/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest/"</profile>
     </site>
 
