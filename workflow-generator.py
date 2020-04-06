@@ -54,7 +54,7 @@ def dir_search(client, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_selec
     # if it is a fits image, add it to the path, otherwise assume it is a subdir
     for entry in entries:
         path = base_path + '/' + entry
-        if re.search('\\.fits$', entry): 
+        if re.search('\\.fits$', entry):
             paths.append(path)
         else:
             # assume it is a directory
@@ -161,7 +161,7 @@ dax.addJob(cache_wait_job)
 
 counter = 0
 for inmod in input_models:
-            
+
     in_file = File(os.path.basename(inmod))
     in_file.addPFN(PFN('webdavs://data.cyverse.org/dav{0}'.format(inmod), 'cyverse'))
     dax.addFile(in_file)
@@ -235,7 +235,7 @@ for inmod in input_models:
             run_job.uses(tar_file, link=Link.OUTPUT)
             dax.addJob(run_job)
             dax.depends(parent=cache_wait_job, child=run_job)
-            
+
             # Add upload job
             upload_job = Job(upload, id='upload-{0:06d}'.format(counter))
             upload_job.addArguments(tar_file)
@@ -252,6 +252,4 @@ f.close()
 
 # also update the sites.xml, with env var susbsitution
 os.environ['CYVERSE_USERNAME'] = p_creds.get('data.cyverse.org', 'username')
-os.system('envsubst < sites.xml.template >generated/sites.xml')
-
-
+os.system('envsubst < sites-eht.xml.template > generated/sites.xml')
