@@ -6,7 +6,7 @@
 
 set -e
 
-touch $1-symba.log $1.tar.gz
+touch $1-symba-log.txt $1.tar.gz
 
 echo "Manaually set environmental variables"
 export PATH=$PATH:/usr/local/src/casa-feature-CAS-12325-14.el6/bin
@@ -22,6 +22,18 @@ export PATH=$PATH:/usr/local/src/symba:$PATH
 # also need to unset some env vars which might interfere with casa
 unset PE_HOSTFILE
 
+# astropy cache
+if [ "x$HOME" = "x" ]; then
+    echo "WARN: \$HOME was not defined. Setting it to /srv"
+    export HOME=/srv
+fi
+export ASTROPY_CACHE_DIR=$HOME/.astropy/cache/download/py2
+rm -rf $ASTROPY_CACHE_DIR
+mkdir -p $ASTROPY_CACHE_DIR
+
+# copy the static IERS files from the singularity container to the current home directory
+cp /home/jeanluc/.astropy/cache/download/py2/* $ASTROPY_CACHE_DIR/
+
 # update the input.txt
 cp /usr/local/src/symba/master_input.txt master_input.txt
 python /usr/local/src/symba/scripts/tableIO.py read -m master_input.txt -f inp.* 2>&1
@@ -32,9 +44,11 @@ echo "Run symba"
 mkdir symba_output
 RC=0
 if ! /usr/local/src/symba/symba input.txt >$1-symba-log.txt 2>&1; then
-    tail -n 100 $1-symba-log.txt
     RC=1
+    # ensure symba finishes all the sub processes
+    sleep 2m
 fi
+tail -n 1000 $1-symba-log.txt
 
 echo
 echo "Resulting files:"
@@ -45,7 +59,10 @@ echo "Resulting files in symba_output:"
 ls -l symba_output
 
 # tar it up
-tar czf $2 symba_output
+tar czf $1.tar.gz symba_output
+
+# clean up
+rm -rf $ASTROPY_CACHE_DIR
 
 exit $RC
 

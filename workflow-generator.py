@@ -151,7 +151,7 @@ dax.addExecutable(upload)
 
 # common input files
 realdata = File('realdata.uvf')
-realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/iplant/home/shared/eht/SyntData/2017_coverage/e17a10lo_M87_coverage.uvf', 'cyverse'))
+realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/iplant/home/shared/eht/SynthData/2017_coverage/e17a10lo_M87_coverage.uvf', 'cyverse'))
 dax.addFile(realdata)
 
 # wait a litte bit before starting the compue jobs - this will
@@ -205,8 +205,8 @@ for inmod in input_models:
             else:
                 this_seed = counter
 
-            # only one job for now
-            if counter > 0:
+            # only run a few jobs for now
+            if counter > 5:
                 break
 
             upload_output = odir0 + '/' + track + band + '_' + src + '/'
