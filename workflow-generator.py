@@ -206,7 +206,7 @@ for inmod in input_models:
                 this_seed = counter
 
             # only run a few jobs for now
-            if counter > 5:
+            if counter >= 5:
                 break
 
             upload_output = odir0 + '/' + track + band + '_' + src + '/'
@@ -231,15 +231,18 @@ for inmod in input_models:
             run_job.uses(inputtxt, link=Link.INPUT)
             run_job.uses(in_file, link=Link.INPUT)
             run_job.uses(realdata, link=Link.INPUT)
-            run_job.uses(log_file, link=Link.OUTPUT)
-            run_job.uses(tar_file, link=Link.OUTPUT)
+            run_job.uses(log_file, link=Link.OUTPUT, transfer=False)
+            run_job.uses(tar_file, link=Link.OUTPUT, transfer=False)
             dax.addJob(run_job)
             dax.depends(parent=cache_wait_job, child=run_job)
 
             # Add upload job
             upload_job = Job(upload, id='upload-{0:06d}'.format(counter))
             upload_job.addArguments(tar_file)
+            upload_job.uses(inputtxt, link=Link.INPUT)
             upload_job.uses(tar_file, link=Link.INPUT)
+            # custom profile so we can throttle
+            upload_job.addProfile(Profile("dagman", "CATEGORY", "upload"))
             dax.addJob(upload_job)
             dax.depends(parent=run_job, child=upload_job)
 
@@ -252,4 +255,4 @@ f.close()
 
 # also update the sites.xml, with env var susbsitution
 os.environ['CYVERSE_USERNAME'] = p_creds.get('data.cyverse.org', 'username')
-os.system('envsubst < sites-eht.xml.template > generated/sites.xml')
+os.system('envsubst < sites.xml.template > generated/sites.xml')

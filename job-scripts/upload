@@ -1,6 +1,50 @@
 #!/bin/bash
 
+# This script takes a tarball of a symba_output directory as input
+# and generates a pegasus-transfer specification file to upload
+# all the content of that tarball to the Cyverse data store.
+
 set -e
 
 ls -l
+
+echo
+DATASTORE_BASE_DIR=`cat inp.* | grep ^osg_upload | sed 's/osg_upload //'`
+DATASTORE_BASE_DIR=`echo $DATASTORE_BASE_DIR | sed 's;.*BkupSimulationLibrary/;/iplant/projects/eht/work/workflow-outputs/;'`
+echo "Uploading to $DATASTORE_BASE_DIR ..."
+
+tar xzf *.tar.gz
+
+TSPEC=transfer-spec.json
+COUNT=1
+echo "[" >$TSPEC
+for FILE in `find symba_output -type f | sed 's;symba_output/;;'`; do
+    if [ $COUNT -gt 1 ]; then
+        echo "  ," >>$TSPEC
+    fi
+    SRC="$PWD/symba_output/$FILE"
+    TARGET="$DATASTORE_BASE_DIR/$FILE"
+    # add it to the transfer specification
+    cat >>$TSPEC <<EOF
+ { "type": "transfer",
+   "lfn": "$FILE",
+   "id": $COUNT,
+   "src_urls": [
+     { "site_label": "local", "url": "file://$SRC", "priority": 100 }
+   ],
+   "dest_urls": [
+     { "site_label": "cyverse", "url": "webdavs://data.cyverse.org/dav$TARGET" }
+   ]
+ }
+EOF
+    COUNT=$((COUNT + 1))
+done
+
+echo "]" >>$TSPEC
+
+echo
+echo "Full transfer spec is:"
+cat $TSPEC
+
+pegasus-transfer -m 3 -n 2 -d -f $TSPEC
 

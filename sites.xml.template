@@ -31,7 +31,7 @@
         <profile namespace="condor" key="request_disk" >10 GB</profile>
         <profile namespace="condor" key="+SingularityImage" >"/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest/"</profile>
         <!-- symba logging is in UTF-8 -->
-        <profile namespace="env" key="LANG" >"en_US.UTF-8"</profile>
+        <profile namespace="env" key="LANG" >en_US.UTF-8</profile>
     </site>
 
 </sitecatalog>
