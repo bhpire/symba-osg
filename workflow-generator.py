@@ -1,13 +1,31 @@
 #!/usr/bin/env python3
 
+
+#TODO for polarization:
+# - add option to include Faraday rotation + option to not avg the channels (<avg_chan>)
+
+#TODO for SgrA*:
+# - add scattering to input models
+# - read <frameduration> from input model files
+# - use updated ER6 DPFUs/aperture-efficiencies/SEFDs for LMT and SMA (differ on each day)
+# - implement time-dependent netcal
+
+#TODO for 2018+:
+# - add vexfiles, antenna tables, and coverage uvf files from the observational data
+
 import configparser
 import os
 import re
 import sys
+import importlib
 from pprint import pprint
 from webdav3.client import Client
 
 from Pegasus.DAX3 import *
+
+configfile = sys.argv[1]
+sys.path.append(os.path.dirname(configfile))
+configinp = importlib.import_module(os.path.basename(configfile).replace('.py', ''))
 
 def dir_search(client, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_select=[], rand_mod_num_sel=False, seed=0):
     """
@@ -64,35 +82,6 @@ def dir_search(client, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_selec
 
 
 
-##################    INPUT PARAMETERS    ########################################################################################################
-seednoise         = 0 #0 to give each submission a different number
-realizations      = 3 #number of different realizations for noise and corruptions for each model
-keep_redundant    = False #also copy back redundant files such as the MS back to CyVerse
-frameduration     = '9999999999999999' #duration of a single model frame in s; TODO: read this from the library itself
-mod_rotation      = 288 #rotate models by this amount [deg]
-mod_scale         = 1 #scale models by this factor
-proclvl           = 'fringefit' #thermal or fringefit
-src               = 'M87' #M87 or SGRA
-time_avg          = '10s' #time cadence of exported data, must be given in [s]
-N_channels        = 64 #number of spectral channels
-avg_chan          = True #used just for filepaths right now; TODO: add option in master_input.txt to not do channel avg
-tracks            = ['e17a10', 'e17b06', 'e17d05', 'e17e11'] #Can obs M87 on a10,b06,d05,e11 and SGRA also on c07
-match_coverage    = True #strip uv-coverage to the one from a real observation
-band              = 'lo' #lo or hi (used to match uv-coverage)
-storage_filepath0 = '/iplant/home/shared/eht' #shared top-level dir for simulations and synthetic data
-sdir              = 'SynthData' #top-level dir for synthetic data in storage_filepath0
-mdir              = 'BkupSimulationLibrary/M87/H5S/suggested/2020.01.06' #top-level dir for simulations in storage_filepath0
-smodel_kywrds     = ['a+0.5', 'Rhigh_1/'] #if input_models=[], all filenames with these keywords in storage_filepath0/+mdir are used as input models
-mod_num_select    = [100, 300, 500, 700, 900] #set to [] to load all models (time-dependent src) or [a,b,c,...] to load models#a,#b#,#c,... (start counting them at 0) for separate synthetic datasets
-rand_mod_num_sel  = [5, 1000] #if not set to False, give [x,y] overwrite mod_num_select to x numbers drawn out of y
-input_models      = []
-#input_models = ['/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06/Ma+0.5/M_6.2e9/i_163_PA_0/Rhigh_1/f_230/image_Ma+0.5_1156_163_0_230.e9_6.2e9_5.61134e+24_1_320_320.h5',
-#                '/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06/Ma+0.5/M_6.2e9/i_163_PA_0/Rhigh_1/f_230/image_Ma+0.5_1212_163_0_230.e9_6.2e9_5.61134e+24_1_320_320.h5',
-#                '/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06/Ma+0.5/M_6.2e9/i_163_PA_0/Rhigh_1/f_230/image_Ma+0.5_1344_163_0_230.e9_6.2e9_5.61134e+24_1_320_320.h5',
-#                '/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06/Ma+0.5/M_6.2e9/i_163_PA_0/Rhigh_1/f_230/image_Ma+0.5_1686_163_0_230.e9_6.2e9_5.61134e+24_1_320_320.h5',
-#               ]
-##################################################################################################################################################
-
 
 base_dir = os.getcwd()
 
@@ -105,6 +94,7 @@ except Exception as err:
     os.exit(1)
 
 
+input_models = configinp.input_models
 if len(input_models) == 0:
     options = {
             'webdav_hostname': 'https://data.cyverse.org',
@@ -113,9 +103,11 @@ if len(input_models) == 0:
     }
     client = Client(options)
     input_models = dir_search(client, '/iplant/home/shared/eht/BkupSimulationLibrary/GRMHD/INSANE/a+0.94/images/M=6.2x10^9')
+    #TODO: use the dir search below
+    #input_models = irods_dir_search_dpsaltis(configinp.storage_filepath0+'/'+configinp.mdir, configinp.smodel_kywrds, configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise)
 pprint(input_models)
 
-N_queue = len(input_models) * len(tracks) * realizations
+N_queue = len(input_models) * len(configinp.tracks) * configinp.realizations
 if N_queue == 0:
     sys.exit('\nGot an empty queue. Exiting.')
 #gen_inp.alter_line('symba_job_submit', 'queue', 'queue = {0}'.format(str(N_queue)))
@@ -125,13 +117,13 @@ if N_queue == 0:
 
 cmd_args_inpprep0 = 'singularity exec /cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest python /usr/local/src/symba/scripts/tableIO.py write '
 
-odir0 = storage_filepath0 + '/' + sdir
-if avg_chan:
+odir0 = configinp.storage_filepath0 + '/' + configinp.sdir
+if configinp.avg_chan:
     freq_res = '1'
 else:
-    freq_res = str(N_channels)
-odir__1 = 'Nch{0}_r{1}_s{2}_fringefit_rz'.format(freq_res, str(mod_rotation), str(mod_scale))
-reals   = range(realizations)
+    freq_res = str(configinp.N_channels)
+odir__1 = 'Nch{0}_r{1}_s{2}_{3}_rz'.format(freq_res, str(configinp.mod_rotation), str(configinp.mod_scale), str(configinp.proclvl))
+reals   = range(configinp.realizations)
 
 # Create a abstract Pegasus dag
 dax = ADAG('pire-symba')
@@ -149,43 +141,42 @@ upload = Executable(name='upload', installed=False)
 upload.addPFN(PFN('file://' + base_dir + '/job-scripts/upload', 'local'))
 dax.addExecutable(upload)
 
-# common input files
-realdata = File('realdata.uvf')
-realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/iplant/home/shared/eht/SynthData/2017_coverage/e17a10lo_M87_coverage.uvf', 'cyverse'))
-dax.addFile(realdata)
-
 # wait a litte bit before starting the compue jobs - this will
 # let the Cyverse Webdav cache settle down
 cache_wait_job = Job(cache_wait)
 dax.addJob(cache_wait_job)
 
-counter = 0
+counter      = 0
+added_models = []
+added_uvfs   = []
 for inmod in input_models:
 
     in_file = File(os.path.basename(inmod))
-    in_file.addPFN(PFN('webdavs://data.cyverse.org/dav{0}'.format(inmod), 'cyverse'))
-    dax.addFile(in_file)
+    if in_file not in added_models:
+        in_file.addPFN(PFN('webdavs://data.cyverse.org/dav{0}'.format(inmod), 'cyverse'))
+        dax.addFile(in_file)
+        added_models.append(in_file)
 
     cmd_args_inpprep = cmd_args_inpprep0
     cmd_args_inpprep+= '-i {0} '.format(inmod)
-    cmd_args_inpprep+= '-d {0} '.format(frameduration)
-    cmd_args_inpprep+= '-j {0} '.format(str(mod_rotation))
-    cmd_args_inpprep+= '-q {0} '.format(str(mod_scale))
+    cmd_args_inpprep+= '-d {0} '.format(configinp.frameduration)
+    cmd_args_inpprep+= '-j {0} '.format(str(configinp.mod_rotation))
+    cmd_args_inpprep+= '-q {0} '.format(str(configinp.mod_scale))
+    cmd_args_inpprep+= '-r {0} '.format(str(configinp.reconstruct_image))
     cmd_args_inpprep+= '-e 3 '
-    cmd_args_inpprep+= '-r False '
     cmd_args_inpprep+= '-c 2 '
     cmd_args_inpprep+= '-o True '
-    cmd_args_inpprep+= '-k True '
-    cmd_args_inpprep+= '-z {0} '.format(keep_redundant)
-    cmd_args_inpprep+= '-s {0} '.format(src)
-    cmd_args_inpprep+= '-l {0} '.format(proclvl)
-    cmd_args_inpprep+= '-t {0} '.format(time_avg)
-    cmd_args_inpprep+= '-b {0} '.format(str(N_channels))
-    if src != 'SGRA':
+    cmd_args_inpprep+= '-p 0.85457 '
+    cmd_args_inpprep+= '-k {0} '.format(str(configinp.keep_redundant))
+    cmd_args_inpprep+= '-s {0} '.format(configinp.src)
+    cmd_args_inpprep+= '-l {0} '.format(configinp.proclvl)
+    cmd_args_inpprep+= '-t {0} '.format(configinp.time_avg)
+    cmd_args_inpprep+= '-b {0} '.format(str(configinp.N_channels))
+    if configinp.src != 'SGRA':
         cmd_args_inpprep+= '-w True '
     else:
         cmd_args_inpprep+= '-w False '
-    for track in tracks:
+    for track in configinp.tracks:
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
             vexf   = '/usr/local/src/symba/symba_input/vex_examples/EHT2017/{0}.vex'.format(track)
@@ -194,23 +185,29 @@ for inmod in input_models:
             cmd_args_inpprep+= '-x {0} '.format(vexf)
             cmd_args_inpprep+= '-a {0} '.format(ants)
             cmd_args_inpprep+= '-g {0} '.format(ants_d)
-            if match_coverage:
-                uvf = '{0}/2017_coverage/{1}{2}_{3}_coverage.uvf'.format(odir0, track, band, src)
+            if configinp.match_coverage:
+                uvf      = '{0}{1}_{2}_coverage.uvf'.format(track, configinp.band, configinp.src)
+                uvf_full = '{0}/2017_coverage/{1}'.format(odir0, uvf)
                 cmd_args_inpprep+= '-v {0} '.format(uvf)
+                realdata = File(uvf)
+                if realdata not in added_uvfs:
+                    realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/{0}'.format(uvf_full), 'cyverse'))
+                    dax.addFile(realdata)
+                    added_uvfs.append(realdata)
             else:
                 cmd_args_inpprep+= '-v False '
         for _ in reals:
-            if seednoise:
-                this_seed = seednoise
+            if configinp.seednoise:
+                this_seed = configinp.seednoise
             else:
                 this_seed = counter
 
             # only run a few jobs for now
-            if counter >= 5:
-                break
+            #if counter >= 5:
+            #    break
 
-            upload_output = odir0 + '/' + track + band + '_' + src + '/'
-            upload_output+= inmod.strip(storage_filepath0) + '/'
+            upload_output = odir0 + '/' + track + configinp.band + '_' + configinp.src + '/'
+            upload_output+= inmod.strip(configinp.storage_filepath0) + '/'
             upload_output+= odir__1 + str(this_seed)
             cmd_args_inpprep+= '-u {0} '.format(upload_output)
             cmd_args_inpprep+= '-n {0} '.format(str(this_seed))

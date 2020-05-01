@@ -2,6 +2,16 @@
 
 set -e
 
+usage()
+{
+    echo -e "Usage: `basename $0` configfile.py"
+    echo -e "E.g.,: `basename $0` run-configs/M87_test0.py"
+    exit 0
+}
+if [ $# -lt 1 ] || [ $1 = "-h" ] ; then
+    usage
+fi
+
 TOPDIR=`pwd`
 
 # a good working directory
@@ -12,7 +22,7 @@ mkdir -p generated
 
 # generate the dax
 export PYTHONPATH=`pegasus-config --python`
-./workflow-generator.py
+./workflow-generator.py $1
 
 # plan and submit the  workflow
 pegasus-plan \

@@ -45,7 +45,7 @@ The API is documented at
 
 To generate a new workflow, run:
 
-    ./generate-new-run
+    ./generate-new-run run-configs/<configfile.py>
 
 Note that when Pegasus plans a workflow, a work directory is created
 and presented in the output.

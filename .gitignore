@@ -1,2 +1,4 @@
 generated
 inputfiles
+run-configs/*.pyc
+run-configs/__pycache__

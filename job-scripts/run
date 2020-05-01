@@ -9,7 +9,7 @@ set -e
 touch $1-symba-log.txt $1.tar.gz
 
 echo "Manaually set environmental variables"
-export PATH=$PATH:/usr/local/src/casa-feature-CAS-12325-14.el6/bin
+export PATH=$PATH:/usr/local/src/casa-**/bin
 export PATH=$PATH:/usr/local/src/picard/picard
 export PYTHONPATH=$PYTHONPATH:/usr/local/src/picard/picard
 export MEQS_DIR=/usr/local/src/MeqSilhouette
@@ -34,10 +34,22 @@ mkdir -p $ASTROPY_CACHE_DIR
 # copy the static IERS files from the singularity container to the current home directory
 cp /home/jeanluc/.astropy/cache/download/py2/* $ASTROPY_CACHE_DIR/
 
+# new method of letting symba figure out the input models based on whatever is available
+#in the input_models folder
+mkdir -p input_models && mv $2 input_models
+
 # update the input.txt
 cp /usr/local/src/symba/master_input.txt master_input.txt
 python /usr/local/src/symba/scripts/tableIO.py read -m master_input.txt -f inp.* 2>&1
-cat master_input.txt | sed "s/^input_fitsimage.*/input_fitsimage = $2/" >input.txt
+
+# scripts created by tableIO.py to align input for symba
+chmod +x osg_move_data.sh
+./osg_move_data.sh
+python set_inpim.py
+
+# old method of manually setting the input image
+#cat master_input.txt | sed "s/^input_fitsimage.*/input_fitsimage = $2/" >input.txt
+mv master_input.txt input.txt
 
 echo
 echo "Run symba"
@@ -49,6 +61,10 @@ if ! /usr/local/src/symba/symba input.txt >$1-symba-log.txt 2>&1; then
     sleep 2m
 fi
 tail -n 1000 $1-symba-log.txt
+
+# cleanup with script created by tableIO.py
+chmod +x osg_cleanup_data.sh
+./osg_cleanup_data.sh
 
 echo
 echo "Resulting files:"
