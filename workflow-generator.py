@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
-
 #TODO for polarization:
 # - add option to include Faraday rotation + option to not avg the channels (<avg_chan>)
 
 #TODO for SgrA*:
 # - add scattering to input models
-# - read <frameduration> from input model files
+# - read <frameduration> from input model files (unless we have a set of simulations with uniform timestamps)
 # - use updated ER6 DPFUs/aperture-efficiencies/SEFDs for LMT and SMA (differ on each day)
-# - implement time-dependent netcal
+# - update uv-coverage files using ER6 fringe-fitted data
 
 #TODO for 2018+:
 # - add vexfiles, antenna tables, and coverage uvf files from the observational data
@@ -17,6 +16,7 @@ import configparser
 import os
 import re
 import sys
+import random
 import importlib
 from pprint import pprint
 from webdav3.client import Client
@@ -27,7 +27,8 @@ configfile = sys.argv[1]
 sys.path.append(os.path.dirname(configfile))
 configinp = importlib.import_module(os.path.basename(configfile).replace('.py', ''))
 
-def dir_search(client, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_select=[], rand_mod_num_sel=False, seed=0):
+
+def dir_search(wclient, base_path, KeyWords=[]):
     """
     Script from Dimitrios.
     Default: Mad[M] models with spin[a] of +0.5 and Rhigh=1 (w/o the slash for Rhigh you would also get Rhigh=10,160,...[1*]).
@@ -37,7 +38,7 @@ def dir_search(client, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_selec
 
     print(' ... checking ' + base_path)
     try:
-        entries = client.list('/dav' + base_path)
+        entries = wclient.list('/dav' + base_path)
     except Exception as e:
         sys.exit(1)
 
@@ -47,40 +48,52 @@ def dir_search(client, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_selec
     if len(entries) == 0:
         return []
 
-    # I'm not sure this works correctly with the fits images
-    #if re.search('\\.fits$', entries[0]):
-    #    # we are in an entries dir
-    #    if all(ext in base_path for ext in KeyWords):
-    #        if rand_mod_num_sel:
-    #            these_mods = []
-    #            for _ in range(rand_mod_num_sel[0]):
-    #                these_mods.append(random.uniform(0, rand_mod_num_sel[1]))
-    #        else:
-    #            these_mods = mod_num_select
-    #        if these_mods:
-    #            for mod_num in these_mods:
-    #                try:
-    #                    paths.append(base_path+'/'+entries[mod_num])
-    #                except IndexError:
-    #                    pass
-    #        else:
-    #            for entry in entries:
-    #                paths.append(base_path+'/'+entry)
-    #
-    #    return paths
-
-    # if it is a fits image, add it to the path, otherwise assume it is a subdir
+    # if it is a fits or h5 image, add it to the path, otherwise assume it is a subdir
     for entry in entries:
         path = base_path + '/' + entry
-        if re.search('\\.fits$', entry):
-            paths.append(path)
+        if re.search('\\.fits$', entry) or re.search('\\.h5$', entry):
+            if all(ext in path for ext in KeyWords):
+                paths.append(path)
+            else:
+                # dead end assuming that the model files are always only at the end of filepaths
+                continue
         else:
             # assume it is a directory
-            paths += dir_search(client, path, KeyWords=KeyWords, mod_num_select=mod_num_select, rand_mod_num_sel=rand_mod_num_sel, seed=seed)
+            paths += dir_search(wclient, path, KeyWords=KeyWords)
 
     return paths
 
-
+def collect_input_models(wclient, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_select=[], rand_mod_num_sel=0, seed=0):
+    """
+    Select and group models obtained from dir_search() according to mod_num_select, rand_mod_num_sel, and seed.
+    """
+    model_homes          = {}
+    all_potential_models = dir_search(wclient, base_path, KeyWords)
+    for path in all_potential_models:
+        this_dirname  = os.path.dirname(path)
+        this_filename = os.path.basename(path)
+        if this_dirname in model_homes:
+            model_homes[this_dirname].append(this_filename)
+        else:
+            model_homes[this_dirname] = [this_filename]
+    if not model_homes:
+        raise ValueError('No models selected! Check mdir and smodel_kywrds in the config file.')
+    if not mod_num_select and not rand_mod_num_sel:
+        # time-dependent model for which we pass an entire folder with models to an OSG node
+        return list(model_homes.keys())
+    random.seed(seed)
+    selected_models = []
+    # return a selection of individual models
+    for dirname in model_homes:
+        if rand_mod_num_sel > 0:
+            N_select  = min(len(model_homes[dirname]), rand_mod_num_sel)
+            selection = random.sample(model_homes[dirname], N_select)
+            for model in selection:
+                selected_models.append(dirname+'/'+model)
+        else:
+            for modelnum in mod_num_select:
+                selected_models.append(dirname+'/'+model_homes[dirname][modelnum])
+    return selected_models
 
 
 base_dir = os.getcwd()
@@ -102,9 +115,7 @@ if len(input_models) == 0:
             'webdav_password': p_creds.get('data.cyverse.org', 'password')
     }
     client = Client(options)
-    input_models = dir_search(client, '/iplant/home/shared/eht/BkupSimulationLibrary/GRMHD/INSANE/a+0.94/images/M=6.2x10^9')
-    #TODO: use the dir search below
-    #input_models = irods_dir_search_dpsaltis(configinp.storage_filepath0+'/'+configinp.mdir, configinp.smodel_kywrds, configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise)
+    input_models = collect_input_models(client, configinp.storage_filepath0+'/'+configinp.mdir, configinp.smodel_kywrds, configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise)
 pprint(input_models)
 
 N_queue = len(input_models) * len(configinp.tracks) * configinp.realizations
@@ -146,7 +157,7 @@ dax.addExecutable(upload)
 cache_wait_job = Job(cache_wait)
 dax.addJob(cache_wait_job)
 
-counter      = 0
+counter      = configinp.seednoise
 added_models = []
 added_uvfs   = []
 for inmod in input_models:
@@ -197,20 +208,12 @@ for inmod in input_models:
             else:
                 cmd_args_inpprep+= '-v False '
         for _ in reals:
-            if configinp.seednoise:
-                this_seed = configinp.seednoise
-            else:
-                this_seed = counter
-
-            # only run a few jobs for now
-            #if counter >= 5:
-            #    break
 
             upload_output = odir0 + '/' + track + configinp.band + '_' + configinp.src + '/'
             upload_output+= inmod.strip(configinp.storage_filepath0) + '/'
-            upload_output+= odir__1 + str(this_seed)
+            upload_output+= odir__1 + str(counter)
             cmd_args_inpprep+= '-u {0} '.format(upload_output)
-            cmd_args_inpprep+= '-n {0} '.format(str(this_seed))
+            cmd_args_inpprep+= '-n {0} '.format(str(counter))
             cmd_args_inpprep+= '-f inputfiles/inp.{0} '.format(str(counter))
             print(cmd_args_inpprep)
             os.system(cmd_args_inpprep)

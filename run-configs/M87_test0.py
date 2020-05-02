@@ -1,4 +1,4 @@
-seednoise         = 0 #0 to give each submission a different number
+seednoise         = 0 #seed for all random realizations of the first synthetic dataset, for each run on an OSG node, it is incremented by 1
 realizations      = 3 #number of different realizations for noise and corruptions for each model
 keep_redundant    = False #also copy back redundant files such as the MS back to CyVerse
 frameduration     = '9999999999999999' #duration of a single model frame in s; TODO: read this from the library itself
@@ -18,7 +18,7 @@ sdir              = 'SynthData' #top-level dir for synthetic data in storage_fil
 mdir              = 'BkupSimulationLibrary/M87/H5S/suggested/2020.01.06' #top-level dir for simulations in storage_filepath0
 smodel_kywrds     = ['a+0.5', 'Rhigh_1/'] #if input_models=[], all filenames with these keywords in storage_filepath0/+mdir are used as input models
 mod_num_select    = [100, 300, 500, 700, 900] #set to [] to load all models (time-dependent src) or [a,b,c,...] to load models#a,#b#,#c,... (start counting them at 0) for separate synthetic datasets
-rand_mod_num_sel  = [5, 1000] #if not set to False, give [x,y] to overwrite mod_num_select to x numbers drawn out of y
+rand_mod_num_sel  = 10 #if >0, overwrite mod_num_select to draw this many random model files for each time-dependent model
 input_models      = []
 #input_models = ['/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06/Ma+0.5/M_6.2e9/i_163_PA_0/Rhigh_1/f_230/image_Ma+0.5_1156_163_0_230.e9_6.2e9_5.61134e+24_1_320_320.h5',
 #                '/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06/Ma+0.5/M_6.2e9/i_163_PA_0/Rhigh_1/f_230/image_Ma+0.5_1212_163_0_230.e9_6.2e9_5.61134e+24_1_320_320.h5',
