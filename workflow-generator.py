@@ -209,7 +209,7 @@ for inmod in input_models:
                 cmd_args_inpprep+= '-v False '
         for _ in reals:
 
-            upload_output = odir0 + '/' + track + configinp.band + '_' + configinp.src + '/'
+            upload_output = odir0 + '/' + track + '_' + configinp.band + '_' + configinp.src + '/'
             upload_output+= inmod.strip(configinp.storage_filepath0) + '/'
             upload_output+= odir__1 + str(counter)
             cmd_args_inpprep+= '-u {0} '.format(upload_output)

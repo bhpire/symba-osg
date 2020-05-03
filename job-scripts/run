@@ -8,7 +8,7 @@ set -e
 
 touch $1-symba-log.txt $1.tar.gz
 
-echo "Manaually set environmental variables"
+echo "Manually set environmental variables"
 export PATH=$PATH:/usr/local/src/casa-**/bin
 export PATH=$PATH:/usr/local/src/picard/picard
 export PYTHONPATH=$PYTHONPATH:/usr/local/src/picard/picard
@@ -50,6 +50,10 @@ python set_inpim.py
 # old method of manually setting the input image
 #cat master_input.txt | sed "s/^input_fitsimage.*/input_fitsimage = $2/" >input.txt
 mv master_input.txt input.txt
+
+# pre-convert models
+# check why this fails at element 33280 inside symba...
+python /usr/local/src/symba/symba_modules/conv_txt2fits.py input.txt input_models
 
 echo
 echo "Run symba"
