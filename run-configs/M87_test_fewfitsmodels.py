@@ -15,7 +15,7 @@ match_coverage    = True #strip uv-coverage to the one from a real observation
 band              = 'lo' #lo or hi (used to match uv-coverage)
 storage_filepath0 = '/iplant/home/shared/eht' #shared top-level dir for simulations and synthetic data
 sdir              = 'SynthData' #top-level dir for synthetic data in storage_filepath0
-mdir              = '/iplant/home/shared/eht/BkupSimulationLibrary/GRMHD/INSANE/a+0.94/images/M=6.2x10^9' #top-level dir for simulations in storage_filepath0
+mdir              = 'BkupSimulationLibrary/GRMHD/INSANE/a+0.94/images/M=6.2x10^9' #top-level dir for simulations in storage_filepath0
 smodel_kywrds     = [] #if input_models=[], all filenames with these keywords in storage_filepath0/+mdir are used as input models
 mod_num_select    = [100, 300, 500, 700, 900] #set to [] to load all models (time-dependent src) or [a,b,c,...] to load models#a,#b#,#c,... (start counting them at 0) for separate synthetic datasets
 rand_mod_num_sel  = 10 #if >0, overwrite mod_num_select to draw this many random model files for each time-dependent model
