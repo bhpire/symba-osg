@@ -38,13 +38,18 @@ cp /home/jeanluc/.astropy/cache/download/py2/* $ASTROPY_CACHE_DIR/
 #in the input_models folder
 mkdir -p input_models && mv $2 input_models
 
+# handle tarball input
+if [[ $2 == *.tar.gz ]]; then
+    tar xfz input_models/*.tar.gz --strip-components=1 -C input_models/
+fi
+
 # update the input.txt
 cp /usr/local/src/symba/master_input.txt master_input.txt
 python /usr/local/src/symba/scripts/tableIO.py read -m master_input.txt -f inp.* 2>&1
 
 # scripts created by tableIO.py to align input for symba
 chmod +x osg_move_data.sh
-./osg_move_data.sh
+./osg_move_data.sh $2
 python set_inpim.py
 
 # old method of manually setting the input image

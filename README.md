@@ -24,6 +24,10 @@ Also ensure the file is only readable by the current user by running:
 
     chmod 600 ~/.pegasus/credentials.conf
 
+Finally, you will need to provide your credentials again for iRODS:
+
+    singularity exec /cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest iinit
+
 ## Inputs
 
 The template performs a simple WebDav walk to find inputs.

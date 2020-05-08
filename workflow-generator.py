@@ -4,7 +4,6 @@
 # - add option to include Faraday rotation + option to not avg the channels (<avg_chan>)
 
 #TODO for SgrA*:
-# - add scattering to input models
 # - read <frameduration> from input model files (unless we have a set of simulations with uniform timestamps)
 # - use updated ER6 DPFUs/aperture-efficiencies/SEFDs for LMT and SMA (differ on each day)
 # - update uv-coverage files using ER6 fringe-fitted data
@@ -26,6 +25,23 @@ from Pegasus.DAX3 import *
 configfile = sys.argv[1]
 sys.path.append(os.path.dirname(configfile))
 configinp = importlib.import_module(os.path.basename(configfile).replace('.py', ''))
+
+
+SINGULARITY_IMAGE = '/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest'
+
+
+def irods_path_to_tar(path0, pathname):
+    global SINGULARITY_IMAGE
+    this_pathname = pathname.rstrip('/')
+    all_folders   = this_pathname.split('/')
+    p_to_folder   = '/'.join(all_folders[:-1])
+    this_basename = this_pathname.lstrip(path0)
+    this_basename = this_basename.lstrip('/')
+    this_basename = this_basename.rstrip('/')
+    this_basename = this_basename.replace('/','_')
+    targzfile     = p_to_folder + '/' + this_basename + '.tar.gz'
+    os.system('singularity exec {0} ibun -fcDg {1} {2}'.format(SINGULARITY_IMAGE, targzfile, pathname))
+    return targzfile
 
 
 def dir_search(wclient, base_path, KeyWords=[]):
@@ -63,10 +79,12 @@ def dir_search(wclient, base_path, KeyWords=[]):
 
     return paths
 
-def collect_input_models(wclient, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_select=[], rand_mod_num_sel=0, seed=0):
+def collect_input_models(wclient, base_path0, base_path1, KeyWords=['Ma+0.5', 'Rhigh_1/'], mod_num_select=[], rand_mod_num_sel=0,
+                         seed=0):
     """
     Select and group models obtained from dir_search() according to mod_num_select, rand_mod_num_sel, and seed.
     """
+    base_path            = base_path0+'/'+base_path1
     model_homes          = {}
     all_potential_models = dir_search(wclient, base_path, KeyWords)
     for path in all_potential_models:
@@ -78,11 +96,13 @@ def collect_input_models(wclient, base_path, KeyWords=['Ma+0.5', 'Rhigh_1/'], mo
             model_homes[this_dirname] = [this_filename]
     if not model_homes:
         raise ValueError('No models selected! Check mdir and smodel_kywrds in the config file.')
-    if not mod_num_select and not rand_mod_num_sel:
-        # time-dependent model for which we pass an entire folder with models to an OSG node
-        return list(model_homes.keys())
-    random.seed(seed)
     selected_models = []
+    if not mod_num_select and not rand_mod_num_sel:
+        # time-dependent model for which we pass an entire tarball with models to an OSG node
+        for modelpath in list(model_homes.keys()):
+            selected_models.append(irods_path_to_tar(base_path0, modelpath))
+        return selected_models
+    random.seed(seed)
     # return a selection of individual models
     for dirname in model_homes:
         if rand_mod_num_sel > 0:
@@ -115,7 +135,9 @@ if len(input_models) == 0:
             'webdav_password': p_creds.get('data.cyverse.org', 'password')
     }
     client = Client(options)
-    input_models = collect_input_models(client, configinp.storage_filepath0+'/'+configinp.mdir, configinp.smodel_kywrds, configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise)
+    input_models = collect_input_models(client, configinp.storage_filepath0, configinp.mdir, configinp.smodel_kywrds,
+                                        configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise
+                                       )
 pprint(input_models)
 
 N_queue = len(input_models) * len(configinp.tracks) * configinp.realizations
@@ -126,7 +148,7 @@ if N_queue == 0:
 #if not os.path.exists(inpd):
 #    os.makedirs(inpd)
 
-cmd_args_inpprep0 = 'singularity exec /cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest python /usr/local/src/symba/scripts/tableIO.py write '
+cmd_args_inpprep0 = 'singularity exec {0} python /usr/local/src/symba/scripts/tableIO.py write '.format(SINGULARITY_IMAGE)
 
 odir0 = configinp.storage_filepath0 + '/' + configinp.sdir
 if configinp.avg_chan:
@@ -178,15 +200,14 @@ for inmod in input_models:
     cmd_args_inpprep+= '-c 2 '
     cmd_args_inpprep+= '-o True '
     cmd_args_inpprep+= '-p 0.85457 '
+    cmd_args_inpprep+= '-w True '
     cmd_args_inpprep+= '-k {0} '.format(str(configinp.keep_redundant))
     cmd_args_inpprep+= '-s {0} '.format(configinp.src)
     cmd_args_inpprep+= '-l {0} '.format(configinp.proclvl)
     cmd_args_inpprep+= '-t {0} '.format(configinp.time_avg)
     cmd_args_inpprep+= '-b {0} '.format(str(configinp.N_channels))
-    if configinp.src != 'SGRA':
-        cmd_args_inpprep+= '-w True '
-    else:
-        cmd_args_inpprep+= '-w False '
+    cmd_args_inpprep+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
+    cmd_args_inpprep+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
     for track in configinp.tracks:
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
@@ -196,6 +217,16 @@ for inmod in input_models:
             cmd_args_inpprep+= '-x {0} '.format(vexf)
             cmd_args_inpprep+= '-a {0} '.format(ants)
             cmd_args_inpprep+= '-g {0} '.format(ants_d)
+            if configinp.src == 'SGRA' and track == 'e17a10':
+                cmd_args_inpprep+= '--refants LM,SM,AP,AZ '
+            elif configinp.src == 'SGRA' and track == 'e17b06':
+                cmd_args_inpprep+= '--refants AA,LM,SM,AZ '
+            elif configinp.src == 'SGRA' and track == 'e17d05':
+                cmd_args_inpprep+= '--refants LM,SM,AP,AZ '
+            elif configinp.src == 'SGRA' and track == 'e17e11':
+                cmd_args_inpprep+= '--refants AA,LM,SM,AZ '
+            else:
+                cmd_args_inpprep+= '--refants AA,LM,SM,PV '
             if configinp.match_coverage:
                 uvf      = '{0}{1}_{2}_coverage.uvf'.format(track, configinp.band, configinp.src)
                 uvf_full = '{0}/2017_coverage/{1}'.format(odir0, uvf)
@@ -210,7 +241,7 @@ for inmod in input_models:
         for _ in reals:
 
             upload_output = odir0 + '/' + track + '_' + configinp.band + '_' + configinp.src + '/'
-            upload_output+= inmod.strip(configinp.storage_filepath0) + '/'
+            upload_output+= inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
             upload_output+= odir__1 + str(counter)
             cmd_args_inpprep+= '-u {0} '.format(upload_output)
             cmd_args_inpprep+= '-n {0} '.format(str(counter))
