@@ -5,8 +5,6 @@
 
 #TODO for SgrA*:
 # - read <frameduration> from input model files (unless we have a set of simulations with uniform timestamps)
-# - use updated ER6 DPFUs/aperture-efficiencies/SEFDs for LMT and SMA (differ on each day)
-# - update uv-coverage files using ER6 fringe-fitted data
 
 #TODO for 2018+:
 # - add vexfiles, antenna tables, and coverage uvf files from the observational data
@@ -28,6 +26,7 @@ configinp = importlib.import_module(os.path.basename(configfile).replace('.py', 
 
 
 SINGULARITY_IMAGE = '/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest'
+PATH_TO_SYMBA     = '/home/mjanssen/symba'
 
 
 def irods_path_to_tar(path0, pathname):
@@ -148,7 +147,8 @@ if N_queue == 0:
 #if not os.path.exists(inpd):
 #    os.makedirs(inpd)
 
-cmd_args_inpprep0 = 'singularity exec {0} python /usr/local/src/symba/scripts/tableIO.py write '.format(SINGULARITY_IMAGE)
+#cmd_args_inpprep0 = 'singularity exec {0} python /usr/local/src/symba/scripts/tableIO.py write '.format(SINGULARITY_IMAGE)
+cmd_args_inpprep0 = 'python {0}/scripts/tableIO.py write '.format(PATH_TO_SYMBA)
 
 odir0 = configinp.storage_filepath0 + '/' + configinp.sdir
 if configinp.avg_chan:
@@ -174,7 +174,7 @@ upload = Executable(name='upload', installed=False)
 upload.addPFN(PFN('file://' + base_dir + '/job-scripts/upload', 'local'))
 dax.addExecutable(upload)
 
-# wait a litte bit before starting the compue jobs - this will
+# wait a little bit before starting the compute jobs - this will
 # let the Cyverse Webdav cache settle down
 cache_wait_job = Job(cache_wait)
 dax.addJob(cache_wait_job)
@@ -212,7 +212,7 @@ for inmod in input_models:
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
             vexf   = '/usr/local/src/symba/symba_input/vex_examples/EHT2017/{0}.vex'.format(track)
-            ants   = '/usr/local/src/symba/symba_input/VLBIarrays/eht.antennas'
+            ants   = '/usr/local/src/symba/symba_input/VLBIarrays/e17_er6/{0}_{1}.antennas'.format(configinp.src, track)
             ants_d = '/usr/local/src/symba/symba_input/VLBIarrays/distributions/eht17.d'
             cmd_args_inpprep+= '-x {0} '.format(vexf)
             cmd_args_inpprep+= '-a {0} '.format(ants)
@@ -246,7 +246,6 @@ for inmod in input_models:
             cmd_args_inpprep+= '-u {0} '.format(upload_output)
             cmd_args_inpprep+= '-n {0} '.format(str(counter))
             cmd_args_inpprep+= '-f inputfiles/inp.{0} '.format(str(counter))
-            print(cmd_args_inpprep)
             os.system(cmd_args_inpprep)
 
             # Add input file to the DAX-level replica catalog
