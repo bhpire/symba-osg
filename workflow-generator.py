@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import random
+import itertools
 import importlib
 from pprint import pprint
 from webdav3.client import Client
@@ -201,6 +202,7 @@ for inmod in input_models:
     cmd_args_inpprep+= '-o True '
     cmd_args_inpprep+= '-p 0.85457 '
     cmd_args_inpprep+= '-w True '
+    cmd_args_inpprep+= '--fringecut 3.0 '
     cmd_args_inpprep+= '-k {0} '.format(str(configinp.keep_redundant))
     cmd_args_inpprep+= '-s {0} '.format(configinp.src)
     cmd_args_inpprep+= '-l {0} '.format(configinp.proclvl)
@@ -208,7 +210,9 @@ for inmod in input_models:
     cmd_args_inpprep+= '-b {0} '.format(str(configinp.N_channels))
     cmd_args_inpprep+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
     cmd_args_inpprep+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
-    for track in configinp.tracks:
+    for iterparams in itertools.product(configinp.tracks, configinp.band):
+        track = iterparams[0]
+        band  = iterparams[1]
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
             vexf   = '/usr/local/src/symba/symba_input/vex_examples/EHT2017/{0}.vex'.format(track)
@@ -228,7 +232,7 @@ for inmod in input_models:
             else:
                 cmd_args_inpprep+= '--refants AA,LM,SM,PV '
             if configinp.match_coverage:
-                uvf      = '{0}{1}_{2}_coverage.uvf'.format(track, configinp.band, configinp.src)
+                uvf      = '{0}{1}_{2}_coverage.uvf'.format(track, band, configinp.src)
                 uvf_full = '{0}/2017_coverage/{1}'.format(odir0, uvf)
                 cmd_args_inpprep+= '-v {0} '.format(uvf)
                 realdata = File(uvf)
@@ -240,24 +244,26 @@ for inmod in input_models:
                 cmd_args_inpprep+= '-v False '
         for _ in reals:
 
-            upload_output = odir0 + '/' + track + '_' + configinp.band + '_' + configinp.src + '/'
+            realization_fmt = '{0:012d}'.format(counter)
+
+            upload_output = odir0 + '/' + track + '_' + band + '_' + configinp.src + '/'
             upload_output+= inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
-            upload_output+= odir__1 + str(counter)
+            upload_output+= odir__1 + realization_fmt
             cmd_args_inpprep+= '-u {0} '.format(upload_output)
             cmd_args_inpprep+= '-n {0} '.format(str(counter))
-            cmd_args_inpprep+= '-f inputfiles/inp.{0} '.format(str(counter))
+            cmd_args_inpprep+= '-f inputfiles/inp.{0} '.format(realization_fmt)
             os.system(cmd_args_inpprep)
 
             # Add input file to the DAX-level replica catalog
             inputtxt = File('inp.{0}'.format(str(counter)))
-            inputtxt.addPFN(PFN('file://{0}/inputfiles/inp.{1}'.format(base_dir, str(counter)), 'local'))
+            inputtxt.addPFN(PFN('file://{0}/inputfiles/inp.{1}'.format(base_dir, realization_fmt), 'local'))
             dax.addFile(inputtxt)
 
             # Add symba job
-            run_job = Job(run, id='{0:06d}'.format(counter))
-            log_file = File('{0:06d}-symba-log.txt'.format(counter))
-            tar_file = File('{0:06d}.tar.gz'.format(counter))
-            run_job.addArguments('{0:06d}'.format(counter), in_file)
+            run_job = Job(run, id='{0}'.format(realization_fmt))
+            log_file = File('{0}-symba-log.txt'.format(realization_fmt))
+            tar_file = File('{0}.tar.gz'.format(realization_fmt))
+            run_job.addArguments('{0}'.format(realization_fmt), in_file)
             run_job.uses(inputtxt, link=Link.INPUT)
             run_job.uses(in_file, link=Link.INPUT)
             run_job.uses(realdata, link=Link.INPUT)
@@ -267,7 +273,7 @@ for inmod in input_models:
             dax.depends(parent=cache_wait_job, child=run_job)
 
             # Add upload job
-            upload_job = Job(upload, id='upload-{0:06d}'.format(counter))
+            upload_job = Job(upload, id='upload-{0:012d}'.format(counter))
             upload_job.addArguments(tar_file)
             upload_job.uses(inputtxt, link=Link.INPUT)
             upload_job.uses(tar_file, link=Link.INPUT)
@@ -277,6 +283,8 @@ for inmod in input_models:
             dax.depends(parent=run_job, child=upload_job)
 
             counter += 1
+            if counter > 4294960000:
+                raise OverflowError('Max seed number limited to 2**32 due to a numpy bug. Fix this in MeqSilhouette.')
 
 # Write the DAX to stdout
 f = open('generated/dax.xml', 'w')

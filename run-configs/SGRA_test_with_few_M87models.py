@@ -12,7 +12,7 @@ N_channels        = 64 #number of spectral channels
 avg_chan          = True #used just for filepaths right now; TODO: add option in master_input.txt to not do channel avg
 tracks            = ['e17a10', 'e17b06', 'e17c07', 'e17d05', 'e17e11'] #Can obs M87 on a10,b06,d05,e11 and SGRA also on c07
 match_coverage    = True #strip uv-coverage to the one from a real observation
-band              = 'hi' #lo or hi (used to match uv-coverage)
+band              = ['lo','hi'] #lo or hi (used to match uv-coverage)
 storage_filepath0 = '/iplant/home/shared/eht' #shared top-level dir for simulations and synthetic data
 sdir              = 'SynthData' #top-level dir for synthetic data in storage_filepath0
 mdir              = 'BkupSimulationLibrary/GRMHD/INSANE/a+0.94/images/M=6.2x10^9' #top-level dir for simulations in storage_filepath0
