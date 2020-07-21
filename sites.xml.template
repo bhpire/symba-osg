@@ -27,8 +27,8 @@
         <profile namespace="condor" key="universe" >vanilla</profile>
         <profile namespace="condor" key="requirements" >HAS_SINGULARITY == True &amp;&amp; HAS_avx2 == True &amp;&amp; GLIDEIN_Site =!= "OSG_US_UWM_NEMO"</profile>
         <profile namespace="condor" key="request_cpus" >1</profile>
-        <profile namespace="condor" key="request_memory" >2 GB</profile>
-        <profile namespace="condor" key="request_disk" >20 GB</profile>
+        <profile namespace="condor" key="request_memory" >4 GB</profile>
+        <profile namespace="condor" key="request_disk" >30 GB</profile>
         <profile namespace="condor" key="+SingularityImage" >"/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest/"</profile>
         <!-- symba logging is in UTF-8 -->
         <profile namespace="env" key="LANG" >en_US.UTF-8</profile>

@@ -32,7 +32,6 @@ pegasus-plan \
     --sites condorpool \
     --staging-site cyverse \
     --output-site cyverse \
-    --dax generated/dax.xml \
     --cluster horizontal \
-    --force
-
+    --force \
+    --dax generated/dax.xml

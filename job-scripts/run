@@ -35,7 +35,7 @@ mkdir -p $ASTROPY_CACHE_DIR
 cp /home/jeanluc/.astropy/cache/download/py2/* $ASTROPY_CACHE_DIR/
 
 # new method of letting symba figure out the input models based on whatever is available
-#in the input_models folder
+# in the input_models folder
 mkdir -p input_models && mv $2 input_models
 
 # handle tarball input

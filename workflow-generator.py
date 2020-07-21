@@ -13,6 +13,7 @@ import configparser
 import os
 import re
 import sys
+import time
 import random
 import itertools
 import importlib
@@ -28,10 +29,12 @@ configinp = importlib.import_module(os.path.basename(configfile).replace('.py', 
 
 SINGULARITY_IMAGE = '/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest'
 PATH_TO_SYMBA     = '/home/mjanssen/symba'
+rebun_tarballs    = False
 
 
-def irods_path_to_tar(path0, pathname):
+def irods_path_to_tar(wclient, path0, pathname, modelrange={}):
     global SINGULARITY_IMAGE
+    global rebun_tarballs
     this_pathname = pathname.rstrip('/')
     all_folders   = this_pathname.split('/')
     p_to_folder   = '/'.join(all_folders[:-1])
@@ -39,9 +42,35 @@ def irods_path_to_tar(path0, pathname):
     this_basename = this_basename.lstrip('/')
     this_basename = this_basename.rstrip('/')
     this_basename = this_basename.replace('/','_')
-    targzfile     = p_to_folder + '/' + this_basename + '.tar.gz'
-    os.system('singularity exec {0} ibun -fcDg {1} {2}'.format(SINGULARITY_IMAGE, targzfile, pathname))
-    return targzfile
+    if modelrange:
+        mlist     = ' '.join([pathname+'/'+mi for mi in modelrange['m']])
+        tmpdir    = pathname+'/tmp/'
+        targzfile = p_to_folder + '/' + this_basename + '_models{0}to{1}.tar.gz'.format(modelrange['b'], modelrange['e'])
+        os.system('singularity exec {0} imkdir -p {1}'.format(SINGULARITY_IMAGE, tmpdir))
+        os.system('singularity exec {0} imv {1} {2}'.format(SINGULARITY_IMAGE, mlist, tmpdir))
+        os.system('singularity exec {0} ibun -fcDg {1} {2}'.format(SINGULARITY_IMAGE, targzfile, tmpdir))
+        mtmplist = ' '.join([tmpdir+'/'+mi for mi in modelrange['m']])
+        os.system('singularity exec {0} imv {1} {2}/'.format(SINGULARITY_IMAGE, mtmplist, pathname))
+        entries = wclient.list('/dav' + tmpdir)
+        entries.pop(0)
+        if entries:
+            raise OSError('Temporary dir {0} not empty.'.format(tmpdir))
+        os.system('singularity exec {0} irm -r {1}'.format(SINGULARITY_IMAGE, tmpdir))
+        return targzfile
+    else:
+        targzfile = p_to_folder + '/' + this_basename + '.tar.gz'
+        if not rebun_tarballs:
+            while True:
+                try:
+                    tfile_exists = client.check('/dav/' + targzfile)
+                    break
+                except:
+                    print ('  ... connection pending ...')
+                    time.sleep(60)
+            if tfile_exists:
+                return targzfile
+        os.system('singularity exec {0} ibun -fcDg {1} {2}'.format(SINGULARITY_IMAGE, targzfile, pathname))
+        return targzfile
 
 
 def dir_search(wclient, base_path, KeyWords=[]):
@@ -53,10 +82,13 @@ def dir_search(wclient, base_path, KeyWords=[]):
     paths = []
 
     print(' ... checking ' + base_path)
-    try:
-        entries = wclient.list('/dav' + base_path)
-    except Exception as e:
-        sys.exit(1)
+    while True:
+        try:
+            entries = wclient.list('/dav' + base_path)
+            break
+        except:
+            print ('  ... connection pending ...')
+            time.sleep(60)
 
     # first entry is just the dir name
     entries.pop(0)
@@ -97,14 +129,39 @@ def collect_input_models(wclient, base_path0, base_path1, KeyWords=['Ma+0.5', 'R
     if not model_homes:
         raise ValueError('No models selected! Check mdir and smodel_kywrds in the config file.')
     selected_models = []
+    Nmod_str        = str(len(model_homes.keys()))
+    #imv is too slow...
+    #if len(mod_num_select)==1 and isinstance(mod_num_select[0], float):
+    #    model_selector = str(mod_num_select[0]).split('.')
+    #    mgroup_size    = int(model_selector[0])
+    #    mgroup_overlap = mgroup_size / int(model_selector[1])
+    #    for i, modelpath in enumerate(list(model_homes.keys())):
+    #        ma = model_homes[modelpath]
+    #        mn = len(ma)
+    #        m0 = 0
+    #        m1 = mgroup_size
+    #        while True:
+    #            these_models = ma[m0:m1]
+    #            mrange       = {}
+    #            mrange['b']  = str(m0)
+    #            mrange['e']  = str(m1)
+    #            mrange['m']  = these_models
+    #            selected_models.append(irods_path_to_tar(wclient, base_path0, modelpath, mrange))
+    #            if m1 > mn:
+    #                break
+    #            m0 += mgroup_overlap
+    #            m1 += mgroup_overlap
+    #        print('Prepared tarball for model {0}/{1}'.format(str(i+1), Nmod_str))
+    #    return selected_models
     if not mod_num_select and not rand_mod_num_sel:
         # time-dependent model for which we pass an entire tarball with models to an OSG node
-        for modelpath in list(model_homes.keys()):
-            selected_models.append(irods_path_to_tar(base_path0, modelpath))
+        for i, modelpath in enumerate(list(model_homes.keys())):
+            selected_models.append(irods_path_to_tar(wclient, base_path0, modelpath))
+            print('Prepared tarball for model {0}/{1}'.format(str(i+1), Nmod_str))
         return selected_models
     random.seed(seed)
     # return a selection of individual models
-    for dirname in model_homes:
+    for dirname in list(model_homes.keys()):
         if rand_mod_num_sel > 0:
             N_select  = min(len(model_homes[dirname]), rand_mod_num_sel)
             selection = random.sample(model_homes[dirname], N_select)
@@ -126,15 +183,13 @@ except Exception as err:
     logger.critical('Unable to load credentials: ' + str(err))
     os.exit(1)
 
-
+options = {'webdav_hostname': 'https://data.cyverse.org',
+           'webdav_login':    p_creds.get('data.cyverse.org', 'username'),
+           'webdav_password': p_creds.get('data.cyverse.org', 'password')
+          }
+client = Client(options)
 input_models = configinp.input_models
 if len(input_models) == 0:
-    options = {
-            'webdav_hostname': 'https://data.cyverse.org',
-            'webdav_login':    p_creds.get('data.cyverse.org', 'username'),
-            'webdav_password': p_creds.get('data.cyverse.org', 'password')
-    }
-    client = Client(options)
     input_models = collect_input_models(client, configinp.storage_filepath0, configinp.mdir, configinp.smodel_kywrds,
                                         configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise
                                        )
@@ -156,8 +211,13 @@ if configinp.avg_chan:
     freq_res = '1'
 else:
     freq_res = str(configinp.N_channels)
-odir__1 = 'Nch{0}_r{1}_s{2}_{3}_rz'.format(freq_res, str(configinp.mod_rotation), str(configinp.mod_scale), str(configinp.proclvl))
-reals   = range(configinp.realizations)
+inp_mod_rotation = configinp.mod_rotation
+inp_mod_scale    = configinp.mod_scale
+if not isinstance(inp_mod_rotation, list):
+    inp_mod_rotation = [inp_mod_rotation]
+if not isinstance(inp_mod_scale, list):
+    inp_mod_scale = [inp_mod_scale]
+reals = range(configinp.realizations)
 
 # Create a abstract Pegasus dag
 dax = ADAG('pire-symba')
@@ -180,7 +240,7 @@ dax.addExecutable(upload)
 cache_wait_job = Job(cache_wait)
 dax.addJob(cache_wait_job)
 
-counter      = configinp.seednoise
+counter      = int(configinp.seednoise)
 added_models = []
 added_uvfs   = []
 for inmod in input_models:
@@ -194,8 +254,6 @@ for inmod in input_models:
     cmd_args_inpprep = cmd_args_inpprep0
     cmd_args_inpprep+= '-i {0} '.format(inmod)
     cmd_args_inpprep+= '-d {0} '.format(configinp.frameduration)
-    cmd_args_inpprep+= '-j {0} '.format(str(configinp.mod_rotation))
-    cmd_args_inpprep+= '-q {0} '.format(str(configinp.mod_scale))
     cmd_args_inpprep+= '-r {0} '.format(str(configinp.reconstruct_image))
     cmd_args_inpprep+= '-e 3 '
     cmd_args_inpprep+= '-c 2 '
@@ -210,9 +268,13 @@ for inmod in input_models:
     cmd_args_inpprep+= '-b {0} '.format(str(configinp.N_channels))
     cmd_args_inpprep+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
     cmd_args_inpprep+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
-    for iterparams in itertools.product(configinp.tracks, configinp.band):
-        track = iterparams[0]
-        band  = iterparams[1]
+    for iterparams in itertools.product(configinp.tracks, configinp.band, inp_mod_scale, inp_mod_rotation):
+        track            = iterparams[0]
+        band             = iterparams[1]
+        mscale           = iterparams[2]
+        mrot             = iterparams[3]
+        cmd_args_inpprep+= '-q {0} '.format(str(mscale))
+        cmd_args_inpprep+= '-j {0} '.format(str(mrot))
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
             vexf   = '/usr/local/src/symba/symba_input/vex_examples/EHT2017/{0}.vex'.format(track)
@@ -242,6 +304,7 @@ for inmod in input_models:
                     added_uvfs.append(realdata)
             else:
                 cmd_args_inpprep+= '-v False '
+        odir__1 = 'Nch{0}_r{1}_s{2}_{3}_rz'.format(freq_res, str(mrot), str(mscale), str(configinp.proclvl))
         for _ in reals:
 
             realization_fmt = '{0:012d}'.format(counter)

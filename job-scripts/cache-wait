@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# $RANDOM range is 0 - 32767, divide by 512 leads to range 0 - 63, or
-# up to ~ 1 minute
+# $RANDOM range is 0 - 32767, divide by 54 leads to range 0 - 607, or
+# up to ~ 10 minutes
 
-sleep $(($RANDOM / 512))
+sleep $(($RANDOM / 54))
