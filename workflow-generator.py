@@ -15,6 +15,7 @@ import re
 import sys
 import time
 import random
+import shutil
 import itertools
 import importlib
 from pprint import pprint
@@ -195,6 +196,9 @@ if len(input_models) == 0:
                                        )
 pprint(input_models)
 
+if os.path.exists('inputfiles'):
+    shutil.rmtree('inputfiles')
+
 N_queue = len(input_models) * len(configinp.tracks) * configinp.realizations
 if N_queue == 0:
     sys.exit('\nGot an empty queue. Exiting.')
@@ -308,14 +312,17 @@ for inmod in input_models:
         for _ in reals:
 
             realization_fmt = '{0:012d}'.format(counter)
+            this_inpf       = 'inputfiles/inp.{0}'.format(realization_fmt)
 
-            upload_output = odir0 + '/' + track + '_' + band + '_' + configinp.src + '/'
-            upload_output+= inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
-            upload_output+= odir__1 + realization_fmt
-            cmd_args_inpprep+= '-u {0} '.format(upload_output)
-            cmd_args_inpprep+= '-n {0} '.format(str(counter))
-            cmd_args_inpprep+= '-f inputfiles/inp.{0} '.format(realization_fmt)
+            upload_output     = odir0 + '/' + track + '_' + band + '_' + configinp.src + '/'
+            upload_output    += inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
+            upload_output    += odir__1 + realization_fmt
+            cmd_args_inpprep += '-u {0} '.format(upload_output)
+            cmd_args_inpprep += '-n {0} '.format(str(counter))
+            cmd_args_inpprep += '-f {0} '.format(this_inpf)
             os.system(cmd_args_inpprep)
+            if not os.path.isfile(this_inpf):
+                raise IOError('Failed to create {0}'.format(this_inpf))
 
             # Add input file to the DAX-level replica catalog
             inputtxt = File('inp.{0}'.format(str(counter)))
@@ -323,7 +330,7 @@ for inmod in input_models:
             dax.addFile(inputtxt)
 
             # Add symba job
-            run_job = Job(run, id='{0}'.format(realization_fmt))
+            run_job  = Job(run, id='{0}'.format(realization_fmt))
             log_file = File('{0}-symba-log.txt'.format(realization_fmt))
             tar_file = File('{0}.tar.gz'.format(realization_fmt))
             run_job.addArguments('{0}'.format(realization_fmt), in_file)
