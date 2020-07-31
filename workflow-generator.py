@@ -255,59 +255,60 @@ for inmod in input_models:
         dax.addFile(in_file)
         added_models.append(in_file)
 
-    cmd_args_inpprep = cmd_args_inpprep0
-    cmd_args_inpprep+= '-i {0} '.format(inmod)
-    cmd_args_inpprep+= '-d {0} '.format(configinp.frameduration)
-    cmd_args_inpprep+= '-r {0} '.format(str(configinp.reconstruct_image))
-    cmd_args_inpprep+= '-e 3 '
-    cmd_args_inpprep+= '-c 2 '
-    cmd_args_inpprep+= '-o True '
-    cmd_args_inpprep+= '-p 0.85457 '
-    cmd_args_inpprep+= '-w True '
-    cmd_args_inpprep+= '--fringecut 3.0 '
-    cmd_args_inpprep+= '-k {0} '.format(str(configinp.keep_redundant))
-    cmd_args_inpprep+= '-s {0} '.format(configinp.src)
-    cmd_args_inpprep+= '-l {0} '.format(configinp.proclvl)
-    cmd_args_inpprep+= '-t {0} '.format(configinp.time_avg)
-    cmd_args_inpprep+= '-b {0} '.format(str(configinp.N_channels))
-    cmd_args_inpprep+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
-    cmd_args_inpprep+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
+    cmd_args_inpprep1 = cmd_args_inpprep0
+    cmd_args_inpprep1+= '-i {0} '.format(inmod)
+    cmd_args_inpprep1+= '-d {0} '.format(configinp.frameduration)
+    cmd_args_inpprep1+= '-r {0} '.format(str(configinp.reconstruct_image))
+    cmd_args_inpprep1+= '-e 3 '
+    cmd_args_inpprep1+= '-c 2 '
+    cmd_args_inpprep1+= '-o True '
+    cmd_args_inpprep1+= '-p 0.85457 '
+    cmd_args_inpprep1+= '-w True '
+    cmd_args_inpprep1+= '--fringecut 3.0 '
+    cmd_args_inpprep1+= '-k {0} '.format(str(configinp.keep_redundant))
+    cmd_args_inpprep1+= '-s {0} '.format(configinp.src)
+    cmd_args_inpprep1+= '-l {0} '.format(configinp.proclvl)
+    cmd_args_inpprep1+= '-t {0} '.format(configinp.time_avg)
+    cmd_args_inpprep1+= '-b {0} '.format(str(configinp.N_channels))
+    cmd_args_inpprep1+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
+    cmd_args_inpprep1+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
     for iterparams in itertools.product(configinp.tracks, configinp.band, inp_mod_scale, inp_mod_rotation):
-        track            = iterparams[0]
-        band             = iterparams[1]
-        mscale           = iterparams[2]
-        mrot             = iterparams[3]
-        cmd_args_inpprep+= '-q {0} '.format(str(mscale))
-        cmd_args_inpprep+= '-j {0} '.format(str(mrot))
+        track             = iterparams[0]
+        band              = iterparams[1]
+        mscale            = iterparams[2]
+        mrot              = iterparams[3]
+        cmd_args_inpprep2 = cmd_args_inpprep1
+        cmd_args_inpprep2+= '-q {0} '.format(str(mscale))
+        cmd_args_inpprep2+= '-j {0} '.format(str(mrot))
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
             vexf   = '/usr/local/src/symba/symba_input/vex_examples/EHT2017/{0}.vex'.format(track)
             ants   = '/usr/local/src/symba/symba_input/VLBIarrays/e17_er6/{0}_{1}.antennas'.format(configinp.src, track)
             ants_d = '/usr/local/src/symba/symba_input/VLBIarrays/distributions/eht17.d'
-            cmd_args_inpprep+= '-x {0} '.format(vexf)
-            cmd_args_inpprep+= '-a {0} '.format(ants)
-            cmd_args_inpprep+= '-g {0} '.format(ants_d)
+            cmd_args_inpprep2+= '-x {0} '.format(vexf)
+            cmd_args_inpprep2+= '-a {0} '.format(ants)
+            cmd_args_inpprep2+= '-g {0} '.format(ants_d)
             if configinp.src == 'SGRA' and track == 'e17a10':
-                cmd_args_inpprep+= '--refants LM,SM,AP,AZ '
+                cmd_args_inpprep2+= '--refants LM,SM,AP,AZ '
             elif configinp.src == 'SGRA' and track == 'e17b06':
-                cmd_args_inpprep+= '--refants AA,LM,SM,AZ '
+                cmd_args_inpprep2+= '--refants AA,LM,SM,AZ '
             elif configinp.src == 'SGRA' and track == 'e17d05':
-                cmd_args_inpprep+= '--refants LM,SM,AP,AZ '
+                cmd_args_inpprep2+= '--refants LM,SM,AP,AZ '
             elif configinp.src == 'SGRA' and track == 'e17e11':
-                cmd_args_inpprep+= '--refants AA,LM,SM,AZ '
+                cmd_args_inpprep2+= '--refants AA,LM,SM,AZ '
             else:
-                cmd_args_inpprep+= '--refants AA,LM,SM,PV '
+                cmd_args_inpprep2+= '--refants AA,LM,SM,PV '
             if configinp.match_coverage:
                 uvf      = '{0}{1}_{2}_coverage.uvf'.format(track, band, configinp.src)
                 uvf_full = '{0}/2017_coverage/{1}'.format(odir0, uvf)
-                cmd_args_inpprep+= '-v {0} '.format(uvf)
+                cmd_args_inpprep2+= '-v {0} '.format(uvf)
                 realdata = File(uvf)
                 if realdata not in added_uvfs:
                     realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/{0}'.format(uvf_full), 'cyverse'))
                     dax.addFile(realdata)
                     added_uvfs.append(realdata)
             else:
-                cmd_args_inpprep+= '-v False '
+                cmd_args_inpprep2+= '-v False '
         odir__1 = 'Nch{0}_r{1}_s{2}_{3}_rz'.format(freq_res, str(mrot), str(mscale), str(configinp.proclvl))
         for _ in reals:
 
@@ -317,10 +318,11 @@ for inmod in input_models:
             upload_output     = odir0 + '/' + track + '_' + band + '_' + configinp.src + '/'
             upload_output    += inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
             upload_output    += odir__1 + realization_fmt
-            cmd_args_inpprep += '-u {0} '.format(upload_output)
-            cmd_args_inpprep += '-n {0} '.format(str(counter))
-            cmd_args_inpprep += '-f {0} '.format(this_inpf)
-            os.system(cmd_args_inpprep)
+            cmd_args_inpprep3 = cmd_args_inpprep2
+            cmd_args_inpprep3+= '-u {0} '.format(upload_output)
+            cmd_args_inpprep3+= '-n {0} '.format(str(counter))
+            cmd_args_inpprep3+= '-f {0} '.format(this_inpf)
+            os.system(cmd_args_inpprep3)
             if not os.path.isfile(this_inpf):
                 raise IOError('Failed to create {0}'.format(this_inpf))
 
