@@ -45,5 +45,5 @@ echo
 echo "Full transfer spec is:"
 cat $TSPEC
 
-pegasus-transfer -m 15 -n 2 -d -f $TSPEC
+pegasus-transfer -m 3 -n 2 -d -f $TSPEC
 
