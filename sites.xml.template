@@ -14,10 +14,10 @@
     <!-- this is our staging site, where intermediate data will be stored -->
     <site  handle="cyverse" arch="x86_64" os="LINUX">
         <directory type="shared-scratch" path="/dav/iplant/home/$CYVERSE_USERNAME/staging">
-            <file-server operation="all" url="webdavs://data.cyverse.org/dav/iplant/home/$CYVERSE_USERNAME/staging"/>
+            <file-server operation="all" url="webdavs://dav-2.cyverse.org/dav/iplant/home/$CYVERSE_USERNAME/staging"/>
         </directory>
         <directory type="shared-storage" path="/dav/iplant/home/$CYVERSE_USERNAME/workflow-outputs">
-            <file-server operation="all" url="webdavs://data.cyverse.org/dav/iplant/home/$CYVERSE_USERNAME/workflow-outputs"/>
+            <file-server operation="all" url="webdavs://dav-2.cyverse.org/dav/iplant/home/$CYVERSE_USERNAME/workflow-outputs"/>
         </directory>
     </site>
 

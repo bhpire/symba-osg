@@ -18,16 +18,19 @@ import random
 import shutil
 import itertools
 import importlib
+from glob import glob
 from pprint import pprint
 from webdav3.client import Client
 
 from Pegasus.DAX3 import *
 
+contold    = sys.argv[-1]
 configfile = sys.argv[1]
 sys.path.append(os.path.dirname(configfile))
 configinp = importlib.import_module(os.path.basename(configfile).replace('.py', ''))
 
 
+WEBDAV_HOST       = 'dav-2.cyverse.org'
 SINGULARITY_IMAGE = '/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest'
 PATH_TO_SYMBA     = '/home/mjanssen/symba'
 rebun_tarballs    = False
@@ -184,9 +187,9 @@ except Exception as err:
     logger.critical('Unable to load credentials: ' + str(err))
     os.exit(1)
 
-options = {'webdav_hostname': 'https://data.cyverse.org',
-           'webdav_login':    p_creds.get('data.cyverse.org', 'username'),
-           'webdav_password': p_creds.get('data.cyverse.org', 'password')
+options = {'webdav_hostname': 'https://'+WEBDAV_HOST,
+           'webdav_login':    p_creds.get(WEBDAV_HOST, 'username'),
+           'webdav_password': p_creds.get(WEBDAV_HOST, 'password')
           }
 client = Client(options)
 input_models = configinp.input_models
@@ -196,7 +199,22 @@ if len(input_models) == 0:
                                        )
 pprint(input_models)
 
+exclude_inpfiles = []
 if os.path.exists('inputfiles'):
+    if contold == '--continue-old-run':
+        ilist = glob('inputfiles/inp.*')
+        for modeliter, inpf in enumerate(ilist):
+            with open(inpf, 'r') as f:
+                print(modeliter)
+                for line in f:
+                    sline = line.split()
+                    if sline[0] == 'osg_upload':
+                        out = os.system('singularity exec {0} ils {1} >/dev/null 2>&1'.format(SINGULARITY_IMAGE, sline[1]))
+                        if not out:
+                            exclude_inpfiles.append(inpf)
+                        else:
+                            pass
+                        break
     shutil.rmtree('inputfiles')
 
 N_queue = len(input_models) * len(configinp.tracks) * configinp.realizations
@@ -251,7 +269,7 @@ for inmod in input_models:
 
     in_file = File(os.path.basename(inmod))
     if in_file not in added_models:
-        in_file.addPFN(PFN('webdavs://data.cyverse.org/dav{0}'.format(inmod), 'cyverse'))
+        in_file.addPFN(PFN('webdavs://{0}/dav{1}'.format(WEBDAV_HOST, inmod), 'cyverse'))
         dax.addFile(in_file)
         added_models.append(in_file)
 
@@ -304,7 +322,7 @@ for inmod in input_models:
                 cmd_args_inpprep2+= '-v {0} '.format(uvf)
                 realdata = File(uvf)
                 if realdata not in added_uvfs:
-                    realdata.addPFN(PFN('webdavs://data.cyverse.org/dav/{0}'.format(uvf_full), 'cyverse'))
+                    realdata.addPFN(PFN('webdavs://{0}/dav/{1}'.format(WEBDAV_HOST, uvf_full), 'cyverse'))
                     dax.addFile(realdata)
                     added_uvfs.append(realdata)
             else:
@@ -322,6 +340,9 @@ for inmod in input_models:
             cmd_args_inpprep3+= '-u {0} '.format(upload_output)
             cmd_args_inpprep3+= '-n {0} '.format(str(counter))
             cmd_args_inpprep3+= '-f {0} '.format(this_inpf)
+            if this_inpf in exclude_inpfiles:
+                counter += 1
+                continue
             os.system(cmd_args_inpprep3)
             if not os.path.isfile(this_inpf):
                 raise IOError('Failed to create {0}'.format(this_inpf))
@@ -364,5 +385,5 @@ dax.writeXML(f)
 f.close()
 
 # also update the sites.xml, with env var susbsitution
-os.environ['CYVERSE_USERNAME'] = p_creds.get('data.cyverse.org', 'username')
+os.environ['CYVERSE_USERNAME'] = p_creds.get(WEBDAV_HOST, 'username')
 os.system('envsubst < sites.xml.template > generated/sites.xml')

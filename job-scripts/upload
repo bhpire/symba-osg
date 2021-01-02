@@ -32,7 +32,7 @@ for FILE in `find symba_output -type f | sed 's;symba_output/;;'`; do
      { "site_label": "local", "url": "file://$SRC", "priority": 100 }
    ],
    "dest_urls": [
-     { "site_label": "cyverse", "url": "webdavs://data.cyverse.org/dav$TARGET" }
+     { "site_label": "cyverse", "url": "webdavs://dav-2.cyverse.org/dav$TARGET" }
    ]
  }
 EOF
