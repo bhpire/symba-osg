@@ -95,7 +95,8 @@ def dir_search(wclient, base_path, KeyWords=[]):
             time.sleep(60)
 
     # first entry is just the dir name
-    entries.pop(0)
+    if any(entries) and '/' in entries[0]:
+        entries.pop(0)
 
     if len(entries) == 0:
         return []
