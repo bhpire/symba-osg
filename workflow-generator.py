@@ -178,6 +178,19 @@ def collect_input_models(wclient, base_path0, base_path1, KeyWords=['Ma+0.5', 'R
     return selected_models
 
 
+def is_set(_object, _parameter):
+    """
+    True if _object has _parameter and that parameter is not None.
+    Else, return False.
+    """
+    if hasattr(_object, _parameter):
+        if getattr(_object, _parameter):
+            return True
+        else:
+            return False
+    return False
+
+
 base_dir = os.getcwd()
 
 # also load the Pegasus credentials - used to get Cyverse credentials
@@ -242,6 +255,12 @@ if not isinstance(inp_mod_scale, list):
     inp_mod_scale = [inp_mod_scale]
 reals = range(configinp.realizations)
 
+if is_set(configinp, 'mod_rot_permod'):
+    inp_mod_rotation = [0]
+    mod_rot_permod   = configinp.mod_rot_permod
+else:
+    mod_rot_permod = False
+
 # Create a abstract Pegasus dag
 dax = ADAG('pire-symba')
 
@@ -266,7 +285,7 @@ dax.addJob(cache_wait_job)
 counter      = int(configinp.seednoise)
 added_models = []
 added_uvfs   = []
-for inmod in input_models:
+for model_iter, inmod in enumerate(input_models):
 
     in_file = File(os.path.basename(inmod))
     if in_file not in added_models:
@@ -291,14 +310,23 @@ for inmod in input_models:
     cmd_args_inpprep1+= '-b {0} '.format(str(configinp.N_channels))
     cmd_args_inpprep1+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
     cmd_args_inpprep1+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
+    if is_set(configinp, 'custommodrange'):
+        cmd_args_inpprep1+= '--custommodrange {0} '.format(str(configinp.custommodrange[model_iter]))
+    if is_set(configinp, 'blindupload'):
+        cmd_args_inpprep1+= '--blindupload '
     for iterparams in itertools.product(configinp.tracks, configinp.band, inp_mod_scale, inp_mod_rotation):
         track             = iterparams[0]
         band              = iterparams[1]
         mscale            = iterparams[2]
         mrot              = iterparams[3]
+        try:
+            mrot = mod_rot_permod[model_iter]
+        except TypeError:
+            pass
+        mrot*= 0.0174533
         cmd_args_inpprep2 = cmd_args_inpprep1
         cmd_args_inpprep2+= '-q {0} '.format(str(mscale))
-        cmd_args_inpprep2+= '-j {0} '.format(str(mrot))
+        cmd_args_inpprep2+= '-j {0} '.format(str(round(mrot,6)))
         if track.startswith('e17'):
             #TODO: Add cases for EHT2018+
             vexf   = '/usr/local/src/symba/symba_input/vex_examples/EHT2017/{0}.vex'.format(track)
@@ -334,9 +362,16 @@ for inmod in input_models:
             realization_fmt = '{0:012d}'.format(counter)
             this_inpf       = 'inputfiles/inp.{0}'.format(realization_fmt)
 
-            upload_output     = odir0 + '/' + track + '_' + band + '_' + configinp.src + '/'
-            upload_output    += inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
-            upload_output    += odir__1 + realization_fmt
+            if is_set(configinp, 'custom_outputdir'):
+                custom_outputdir = configinp.custom_outputdir
+                if isinstance(custom_outputdir, list):
+                    upload_output = custom_outputdir[model_iter]
+                else:
+                    upload_output = custom_outputdir
+            else:
+                upload_output = odir0 + '/' + track + '_' + band + '_' + configinp.src + '/'
+                upload_output+= inmod.strip(configinp.storage_filepath0).rstrip('.tar.gz') + '/'
+                upload_output+= odir__1 + realization_fmt
             cmd_args_inpprep3 = cmd_args_inpprep2
             cmd_args_inpprep3+= '-u {0} '.format(upload_output)
             cmd_args_inpprep3+= '-n {0} '.format(str(counter))
