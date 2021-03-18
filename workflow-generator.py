@@ -313,7 +313,7 @@ for model_iter, inmod in enumerate(input_models):
     if is_set(configinp, 'custommodrange'):
         cmd_args_inpprep1+= '--custommodrange {0} '.format(str(configinp.custommodrange[model_iter]))
     if is_set(configinp, 'blindupload'):
-        cmd_args_inpprep1+= '--blindupload '
+        cmd_args_inpprep1+= '--blindupload True '
     for iterparams in itertools.product(configinp.tracks, configinp.band, inp_mod_scale, inp_mod_rotation):
         track             = iterparams[0]
         band              = iterparams[1]
