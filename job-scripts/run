@@ -58,7 +58,7 @@ mv master_input.txt input.txt
 
 # pre-convert models
 # check why this fails at element 33280 inside symba...
-python /usr/local/src/symba/symba_modules/conv_txt2fits.py input.txt input_models
+#python /usr/local/src/symba/symba_modules/conv_txt2fits.py input.txt input_models ###DOING THIS WOULD MEAN DOUBLE-SCATTERING for SGRA###
 
 echo
 echo "Run symba"

@@ -1,4 +1,4 @@
-seednoise         = 270000 #seed for all random realizations of the first synthetic dataset, for each run on an OSG node, it is incremented by 1
+seednoise         = 300000 #seed for all random realizations of the first synthetic dataset, for each run on an OSG node, it is incremented by 1
 realizations      = 10 #number of different realizations for noise and corruptions for each model
 keep_redundant    = False #also copy back redundant files such as the MS back to CyVerse
 frameduration     = '100' #duration of a single model frame in s; TODO: read this from the library itself
@@ -7,6 +7,7 @@ mod_scale         = 1 #scale models by this factor, can be a list
 reconstruct_image = True #create a simple .fits image reconstruction
 proclvl           = 'fringefit' #thermal or fringefit
 src               = 'SGRA' #M87 or SGRA
+scatter_vel       = '35,5' #mean and sigma for km_s velocities of the scattering screen towards SGRA; drawn independently for x and y
 time_avg          = '10s' #time cadence of exported data, must be given in [s]
 N_channels        = 128 #number of spectral channels
 avg_chan          = True #used just for filepaths right now; TODO: add option in master_input.txt to not do channel avg

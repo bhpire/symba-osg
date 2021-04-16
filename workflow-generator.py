@@ -261,6 +261,11 @@ if is_set(configinp, 'mod_rot_permod'):
 else:
     mod_rot_permod = False
 
+if is_set(configinp, 'scatter_vel'):
+    sv = str(configinp.scatter_vel)
+else:
+    sv = '0,0'
+
 # Create a abstract Pegasus dag
 dax = ADAG('pire-symba')
 
@@ -302,7 +307,7 @@ for model_iter, inmod in enumerate(input_models):
     cmd_args_inpprep1+= '-o True '
     cmd_args_inpprep1+= '-p 0.85457 '
     cmd_args_inpprep1+= '-w True '
-    cmd_args_inpprep1+= '--fringecut 3.0 '
+    cmd_args_inpprep1+= '--fringecut 4.4 '
     cmd_args_inpprep1+= '-k {0} '.format(str(configinp.keep_redundant))
     cmd_args_inpprep1+= '-s {0} '.format(configinp.src)
     cmd_args_inpprep1+= '-l {0} '.format(configinp.proclvl)
@@ -310,6 +315,11 @@ for model_iter, inmod in enumerate(input_models):
     cmd_args_inpprep1+= '-b {0} '.format(str(configinp.N_channels))
     cmd_args_inpprep1+= '-z /usr/local/src/symba/symba_input/scattering/Psaltis_Johnson_2018.txt.default '
     cmd_args_inpprep1+= '-y /usr/local/src/symba/symba_input/scattering/distributions/Psaltis_Johnson_2018.txt '
+    cmd_args_inpprep1+= '--scattervel {0} '.format(str(sv))
+    if configinp.src == 'SGRA':
+        cmd_args_inpprep1+= '--minflux 1.5 '
+    elif configinp.src =='M87':
+        cmd_args_inpprep1+= '--minflux 0.8 '
     if is_set(configinp, 'custommodrange'):
         cmd_args_inpprep1+= '--custommodrange {0} '.format(str(configinp.custommodrange[model_iter]))
     if is_set(configinp, 'blindupload'):
