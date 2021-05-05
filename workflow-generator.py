@@ -24,15 +24,23 @@ from webdav3.client import Client
 
 from Pegasus.DAX3 import *
 
-contold    = sys.argv[-1]
+from tqdm import tqdm
+
+contfromthisdir = ''
+contold         = sys.argv[-1]
+if os.path.isdir(contold):
+    contfromthisdir = contold
+    contold         = sys.argv[2]
 configfile = sys.argv[1]
 sys.path.append(os.path.dirname(configfile))
-configinp = importlib.import_module(os.path.basename(configfile).replace('.py', ''))
+conf_libn = os.path.basename(configfile).replace('.py', '')
+configinp = importlib.import_module(conf_libn)
 
 
 WEBDAV_HOST       = 'dav-2.cyverse.org'
 SINGULARITY_IMAGE = '/cvmfs/singularity.opensciencegrid.org/mjanssen2308/symba:latest'
 PATH_TO_SYMBA     = '/home/mjanssen/symba'
+backup_input      = '/home/mjanssen/inputfiles.finished_runs'
 rebun_tarballs    = False
 
 
@@ -85,7 +93,7 @@ def dir_search(wclient, base_path, KeyWords=[]):
 
     paths = []
 
-    print(' ... checking ' + base_path)
+    print(' ... checking ' + base_path + '        ', end='\r', flush=True)
     while True:
         try:
             entries = wclient.list('/dav' + base_path)
@@ -124,6 +132,7 @@ def collect_input_models(wclient, base_path0, base_path1, KeyWords=['Ma+0.5', 'R
     base_path            = base_path0+'/'+base_path1
     model_homes          = {}
     all_potential_models = dir_search(wclient, base_path, KeyWords)
+    print('')
     for path in all_potential_models:
         this_dirname  = os.path.dirname(path)
         this_filename = os.path.basename(path)
@@ -178,6 +187,24 @@ def collect_input_models(wclient, base_path0, base_path1, KeyWords=['Ma+0.5', 'R
     return selected_models
 
 
+def get_inps_from_finished_runs(inploc):
+    ilist = glob(inploc)
+    exinp = []
+    print ('Will exclude finished runs from {0} inputs'.format(inploc))
+    for modeliter, inpf in enumerate(tqdm(ilist)):
+        with open(inpf, 'r') as fi:
+            for line in fi:
+                sline = line.split()
+                if sline[0] == 'osg_upload':
+                    out = os.system('singularity exec {0} ils {1} >/dev/null 2>&1'.format(SINGULARITY_IMAGE, sline[1]))
+                    if not out:
+                        exinp.append(os.path.basename(inpf))
+                    else:
+                        pass
+                    break
+    return exinp
+
+
 def is_set(_object, _parameter):
     """
     True if _object has _parameter and that parameter is not None.
@@ -211,30 +238,25 @@ if len(input_models) == 0:
     input_models = collect_input_models(client, configinp.storage_filepath0, configinp.mdir, configinp.smodel_kywrds,
                                         configinp.mod_num_select, configinp.rand_mod_num_sel, configinp.seednoise
                                        )
-pprint(input_models)
+N_models = len(input_models)
+print('Got {0} input models'.format(str(N_models)))
 
 exclude_inpfiles = []
 if os.path.exists('inputfiles'):
     if contold == '--continue-old-run':
-        ilist = glob('inputfiles/inp.*')
-        for modeliter, inpf in enumerate(ilist):
-            with open(inpf, 'r') as f:
-                print(modeliter)
-                for line in f:
-                    sline = line.split()
-                    if sline[0] == 'osg_upload':
-                        out = os.system('singularity exec {0} ils {1} >/dev/null 2>&1'.format(SINGULARITY_IMAGE, sline[1]))
-                        if not out:
-                            exclude_inpfiles.append(inpf)
-                        else:
-                            pass
-                        break
-    shutil.rmtree('inputfiles')
+        exclude_inpfiles = get_inps_from_finished_runs('inputfiles/inp.*')
+        shutil.rmtree('inputfiles')
+if contold == '--continue-from':
+    exclude_inpfiles = get_inps_from_finished_runs(contfromthisdir+'/inp.*')
 
-N_queue = len(input_models) * len(configinp.tracks) * configinp.realizations
-if N_queue == 0:
-    sys.exit('\nGot an empty queue. Exiting.')
-#gen_inp.alter_line('symba_job_submit', 'queue', 'queue = {0}'.format(str(N_queue)))
+cp_input = ''
+if backup_input:
+    if not os.path.isdir(backup_input+'/'+conf_libn):
+        cp_input = backup_input+'/'+conf_libn+'/'
+        os.makedirs(cp_input)
+        print ('Will backup input to {0}'.format(cp_input))
+    else:
+        pass
 
 #if not os.path.exists(inpd):
 #    os.makedirs(inpd)
@@ -266,6 +288,13 @@ if is_set(configinp, 'scatter_vel'):
 else:
     sv = '0,0'
 
+N_queue = N_models * len(configinp.tracks) * len(inp_mod_rotation) * len(inp_mod_scale) * configinp.realizations
+N_queue-= len(exclude_inpfiles)
+if N_queue < 1:
+    sys.exit('\nGot an empty queue. Exiting.')
+print('Will prepare {0} runs'.format(str(N_queue)))
+#gen_inp.alter_line('symba_job_submit', 'queue', 'queue = {0}'.format(str(N_queue)))
+
 # Create a abstract Pegasus dag
 dax = ADAG('pire-symba')
 
@@ -290,14 +319,7 @@ dax.addJob(cache_wait_job)
 counter      = int(configinp.seednoise)
 added_models = []
 added_uvfs   = []
-for model_iter, inmod in enumerate(input_models):
-
-    in_file = File(os.path.basename(inmod))
-    if in_file not in added_models:
-        in_file.addPFN(PFN('webdavs://{0}/dav{1}'.format(WEBDAV_HOST, inmod), 'cyverse'))
-        dax.addFile(in_file)
-        added_models.append(in_file)
-
+for model_iter, inmod in enumerate(tqdm(input_models)):
     cmd_args_inpprep1 = cmd_args_inpprep0
     cmd_args_inpprep1+= '-i {0} '.format(inmod)
     cmd_args_inpprep1+= '-d {0} '.format(configinp.frameduration)
@@ -386,13 +408,20 @@ for model_iter, inmod in enumerate(input_models):
             cmd_args_inpprep3+= '-u {0} '.format(upload_output)
             cmd_args_inpprep3+= '-n {0} '.format(str(counter))
             cmd_args_inpprep3+= '-f {0} '.format(this_inpf)
-            if this_inpf in exclude_inpfiles:
+            if os.path.basename(this_inpf) in exclude_inpfiles:
                 counter += 1
                 continue
             os.system(cmd_args_inpprep3)
             if not os.path.isfile(this_inpf):
                 raise IOError('Failed to create {0}'.format(this_inpf))
+            if cp_input:
+                shutil.copy2(this_inpf, cp_input)
 
+            in_file = File(os.path.basename(inmod))
+            if in_file not in added_models:
+                in_file.addPFN(PFN('webdavs://{0}/dav{1}'.format(WEBDAV_HOST, inmod), 'cyverse'))
+                dax.addFile(in_file)
+                added_models.append(in_file)
             # Add input file to the DAX-level replica catalog
             inputtxt = File('inp.{0}'.format(str(counter)))
             inputtxt.addPFN(PFN('file://{0}/inputfiles/inp.{1}'.format(base_dir, realization_fmt), 'local'))
